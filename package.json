@@ -1,6 +1,6 @@
 {
   "CloudStrm": {
-    "name": "云盘Strm生成-beattyy",
+    "name": "云盘Strm生成",
     "description": "监控文件创建，生成Strm文件。",
     "labels": "云盘",
     "version": "4.4.2",
