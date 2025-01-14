@@ -24,13 +24,13 @@ class CloudStrm(_PluginBase):
     # 插件描述
     plugin_desc = "定时扫描云盘文件，生成Strm文件。"
     # 插件图标
-    plugin_icon = "https://raw.githubusercontent.com/thsrite/MoviePilot-Plugins/main/icons/create.png"
+    plugin_icon = "https://raw.githubusercontent.com/beatter789/MoviePilot-Plugins/main/icons/create.png"
     # 插件版本
     plugin_version = "4.4.3"
     # 插件作者
     plugin_author = "beattyy"
     # 作者主页
-    author_url = "https://github.com/thsrite"
+    author_url = "https://github.com/beatter789"
     # 插件配置项ID前缀
     plugin_config_prefix = "cloudstrm_"
     # 加载顺序
