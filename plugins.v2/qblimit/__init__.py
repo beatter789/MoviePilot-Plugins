@@ -12,7 +12,7 @@ from app.plugins import _PluginBase
 from app.schemas import ServiceInfo
 
 
-class Limit(_PluginBase):
+class QbLimit(_PluginBase):
     # 插件名称
     plugin_name = "qb限速"
     # 插件描述
@@ -20,7 +20,7 @@ class Limit(_PluginBase):
     # 插件图标
     plugin_icon = "Youtube-dl_A.png"
     # 插件版本
-    plugin_version = "v1.0.1"
+    plugin_version = "1.0.2"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -32,7 +32,7 @@ class Limit(_PluginBase):
     # 可使用的用户级别
     auth_level = 2
     # 日志前缀
-    LOG_TAG = "[Limit]"
+    LOG_TAG = "[QbLimit]"
 
     # 退出事件
     _event = threading.Event()
