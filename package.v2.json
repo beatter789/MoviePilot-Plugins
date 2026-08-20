@@ -3,9 +3,9 @@
     "name": "qb限速",
     "description": "给 qb 下载任务限速",
     "labels": "下载管理",
-    "version": "v1.0.0",
+    "version": "v1.0.1",
     "icon": "Youtube-dl_A.png",
-    "author": "ClarkChen",
+    "author": "beatter789",
     "level": 2
   }
 }

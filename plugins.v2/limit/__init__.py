@@ -20,13 +20,13 @@ class Limit(_PluginBase):
     # 插件图标
     plugin_icon = "Youtube-dl_A.png"
     # 插件版本
-    plugin_version = "v1.0.0"
+    plugin_version = "v1.0.1"
     # 插件作者
-    plugin_author = "ClarkChen"
+    plugin_author = "beatter789"
     # 作者主页
-    author_url = "https://github.com/aClarkChen"
+    author_url = "https://github.com/beatter789"
     # 插件配置项ID前缀
-    plugin_config_prefix = "Limit_"
+    plugin_config_prefix = "QbLimit_"
     # 加载顺序
     plugin_order = 22
     # 可使用的用户级别
