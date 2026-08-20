@@ -14,13 +14,13 @@ from app.schemas import ServiceInfo
 
 class Limit(_PluginBase):
     # 插件名称
-    plugin_name = "自动限速"
+    plugin_name = "qb限速"
     # 插件描述
-    plugin_desc = "给qb、tr的下载任务限速"
+    plugin_desc = "给 qb 下载任务限速"
     # 插件图标
     plugin_icon = "Youtube-dl_A.png"
     # 插件版本
-    plugin_version = "1.1.6"
+    plugin_version = "v1.0.0"
     # 插件作者
     plugin_author = "ClarkChen"
     # 作者主页
@@ -139,7 +139,7 @@ class Limit(_PluginBase):
                     if self._interval_unit == "小时":
                         return [{
                             "id": "Limit",
-                            "name": "自动限速",
+                            "name": "qb限速",
                             "trigger": "interval",
                             "func": self._complete_limit,
                             "kwargs": {
@@ -152,7 +152,7 @@ class Limit(_PluginBase):
                             logger.info(f"{self.LOG_TAG}启动定时服务: 最小不少于5分钟, 防止执行间隔太短任务冲突")
                         return [{
                             "id": "Limit",
-                            "name": "自动限速",
+                            "name": "qb限速",
                             "trigger": "interval",
                             "func": self._complete_limit,
                             "kwargs": {
@@ -162,7 +162,7 @@ class Limit(_PluginBase):
                 else:
                     return [{
                         "id": "Limit",
-                        "name": "自动限速",
+                        "name": "qb限速",
                         "trigger": CronTrigger.from_crontab(self._interval_cron),
                         "func": self._complete_limit,
                         "kwargs": {}
