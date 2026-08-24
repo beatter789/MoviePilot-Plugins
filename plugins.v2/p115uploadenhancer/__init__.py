@@ -27,7 +27,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.0.0"
+    plugin_version = "1.0.1"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -210,19 +210,6 @@ class P115UploadEnhancer(_PluginBase):
                                     {
                                         "component": "VSwitch",
                                         "props": {
-                                            "model": "upload_module_notify",
-                                            "label": "等待时发送通知",
-                                        },
-                                    }
-                                ],
-                            },
-                            {
-                                "component": "VCol",
-                                "props": {"cols": 12, "md": 3},
-                                "content": [
-                                    {
-                                        "component": "VSwitch",
-                                        "props": {
                                             "model": "upload_module_skip_slow_upload",
                                             "label": "秒传失败跳过上传",
                                         },
@@ -248,12 +235,23 @@ class P115UploadEnhancer(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 6, "md": 3},
-                                "content": [{"component": "VTextField", "props": {"model": "upload_module_skip_upload_wait_size", "label": "跳过等待大小（字节）", "type": "number", "min": 0}}],
+                                "content": [{"component": "VTextField", "props": {"model": "upload_module_skip_upload_wait_size", "label": "跳过等待大小", "placeholder": "例如 800M、1G、1024K", "hint": "文件大小小于等于此值时直接上传；支持 K/M/G/T，0 表示不跳过", "persistent-hint": True}}],
                             },
                             {
                                 "component": "VCol",
                                 "props": {"cols": 6, "md": 3},
-                                "content": [{"component": "VTextField", "props": {"model": "upload_module_force_upload_wait_size", "label": "强制等待大小（字节）", "type": "number", "min": 0}}],
+                                "content": [{"component": "VTextField", "props": {"model": "upload_module_force_upload_wait_size", "label": "强制等待大小", "placeholder": "例如 5G、1024M", "hint": "用于标记大文件强制等待并写入日志；0 表示关闭，支持 K/M/G/T", "persistent-hint": True}}],
+                            },
+                        ],
+                    },
+                    {
+                        "component": "VRow",
+                        "props": {"v-if": "upload_module_enhancement && upload_module_skip_slow_upload"},
+                        "content": [
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [{"component": "VTextField", "props": {"model": "upload_module_skip_slow_upload_size", "label": "秒传失败跳过上传大小", "placeholder": "例如 5G；0 表示所有文件", "hint": "达到此大小后，等待结束仍不能秒传则返回失败，不进行真实上传", "persistent-hint": True}}],
                             },
                         ],
                     },
@@ -447,14 +445,13 @@ class P115UploadEnhancer(_PluginBase):
             "enabled": False,
             "cookie": "",
             "upload_module_enhancement": True,
-            "upload_module_notify": True,
-            "upload_open_result_notify": False,
+
             "upload_module_wait_time": 300,
             "upload_module_wait_timeout": 3600,
-            "upload_module_skip_upload_wait_size": 0,
-            "upload_module_force_upload_wait_size": 0,
+            "upload_module_skip_upload_wait_size": "0",
+            "upload_module_force_upload_wait_size": "0",
             "upload_module_skip_slow_upload": False,
-            "upload_module_skip_slow_upload_size": 0,
+            "upload_module_skip_slow_upload_size": "0",
             "timeout_enabled": True,
             "timeout_default_connect": 30,
             "timeout_default_pool": 15,

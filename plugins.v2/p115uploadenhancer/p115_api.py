@@ -25,6 +25,7 @@ from app.schemas.exception import StorageQueryError
 
 from .cache import IdPathCache, ItemIdCache
 from .tools import RateLimiter, get_ios_ua_app
+from .upload_policy import parse_size, should_skip_real_upload, should_wait_for_reuse
 
 
 class P115Api:
@@ -955,26 +956,59 @@ class P115Api:
                 return self.get_item(target_path)
 
             upload_config = self.upload_config
-            wait_time = max(int(upload_config.get("upload_module_wait_time", 300)), 0)
-            wait_timeout = max(int(upload_config.get("upload_module_wait_timeout", 3600)), 0)
-            skip_wait_size = int(upload_config.get("upload_module_skip_upload_wait_size") or 0)
-            force_wait_size = int(upload_config.get("upload_module_force_upload_wait_size") or 0)
-            skip_slow_upload = bool(upload_config.get("upload_module_skip_slow_upload", False))
-            skip_slow_size = int(upload_config.get("upload_module_skip_slow_upload_size") or 0)
-            wait_started = perf_counter()
-            should_wait = (
-                wait_time > 0
-                and wait_timeout > 0
-                and file_size > skip_wait_size
-                and (force_wait_size <= 0 or file_size >= force_wait_size)
+            enhancement_enabled = bool(
+                upload_config.get("upload_module_enhancement", True)
+            )
+            wait_time = max(
+                int(upload_config.get("upload_module_wait_time", 300)), 0
+            )
+            wait_timeout = max(
+                int(upload_config.get("upload_module_wait_timeout", 3600)), 0
+            )
+            skip_wait_size = parse_size(
+                upload_config.get("upload_module_skip_upload_wait_size")
+            )
+            force_wait_size = parse_size(
+                upload_config.get("upload_module_force_upload_wait_size")
+            )
+            skip_slow_upload = bool(
+                upload_config.get("upload_module_skip_slow_upload", False)
+            )
+            skip_slow_size = parse_size(
+                upload_config.get("upload_module_skip_slow_upload_size")
+            )
+            should_wait = should_wait_for_reuse(
+                enabled=enhancement_enabled,
+                file_size=file_size,
+                skip_wait_size=skip_wait_size,
+                wait_time=wait_time,
+                wait_timeout=wait_timeout,
             )
             if should_wait:
-                while perf_counter() - wait_started < wait_timeout:
+                wait_started = perf_counter()
+                force_wait = force_wait_size > 0 and file_size >= force_wait_size
+                logger.info(
+                    f"【115上传增强】{target_name} 进入秒传等待，"
+                    f"间隔 {wait_time} 秒，最长 {wait_timeout} 秒，"
+                    f"强制等待={'是' if force_wait else '否'}"
+                )
+                while True:
+                    elapsed = perf_counter() - wait_started
+                    remaining = wait_timeout - elapsed
+                    if remaining <= 0:
+                        break
                     if global_vars.is_transfer_stopped(local_path.as_posix()):
                         logger.info(f"【115上传增强】上传已取消: {target_name}")
                         return None
-                    logger.info(f"【115上传增强】等待秒传: {target_name}，等待 {wait_time} 秒")
-                    sleep(wait_time)
+                    current_wait = min(wait_time, max(int(remaining), 1))
+                    logger.info(
+                        f"【115上传增强】等待秒传: {target_name}，"
+                        f"{current_wait} 秒后重试"
+                    )
+                    sleep(current_wait)
+                    if global_vars.is_transfer_stopped(local_path.as_posix()):
+                        logger.info(f"【115上传增强】上传已取消: {target_name}")
+                        return None
                     init_resp = self.client.upload_file_init(
                         filename=target_name,
                         filesize=file_size,
@@ -987,11 +1021,32 @@ class P115Api:
                         logger.info(f"【115上传增强】{target_name} 等待后秒传成功")
                         progress_callback(100)
                         return self.get_item(target_path)
-                    if force_wait_size <= 0 and init_resp.get("data", {}).get("status") != 2:
-                        break
-            if skip_slow_upload and (skip_slow_size <= 0 or file_size >= skip_slow_size):
-                logger.warning(f"【115上传增强】{target_name} 秒传失败，按配置跳过真实上传")
+                logger.info(
+                    f"【115上传增强】{target_name} 等待 {wait_timeout} 秒后仍无法秒传"
+                )
+            if should_skip_real_upload(
+                enabled=enhancement_enabled and skip_slow_upload,
+                file_size=file_size,
+                threshold=skip_slow_size,
+            ):
+                logger.warning(
+                    f"【115上传增强】{target_name} 秒传失败，按配置跳过真实上传"
+                )
                 return None
+            if should_wait:
+                init_resp = self.client.upload_file_init(
+                    filename=target_name,
+                    filesize=file_size,
+                    filesha1=file_sha1,
+                    pid=target_pid,
+                    read_range_bytes_or_hash=read_range_hash,
+                )
+                check_response(init_resp)
+                if init_resp.get("reuse"):
+                    logger.info(f"【115上传增强】{target_name} 超时边界秒传成功")
+                    progress_callback(100)
+                    return self.get_item(target_path)
+            logger.info(f"【115上传增强】{target_name} 进入正常分片上传")
 
             logger.debug(f"【115上传增强】上传初始化结果: {init_resp}")
 
