@@ -148,7 +148,8 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - 已通过 Git 暂存区 `diff --check`
 - 已创建提交：`a199586 feat(p115uploadenhancer): add standalone 115 plus upload enhancement`
 - Git 提交包含 AI 协作者信息
-- 尚未完成 GitHub 推送，等待用户在本机完成凭据交互
+- Harness 使用 `127.0.0.1:7890` 代理推送失败，提示代理无法连接；本地提交仍已完成
+- 需要用户在自己运行代理的 PowerShell 中推送
 
 ### 本轮上传准备
 
