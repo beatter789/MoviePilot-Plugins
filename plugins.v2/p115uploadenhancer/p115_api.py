@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 from time import monotonic, sleep, time, perf_counter
 from typing import Dict, List, Optional, Tuple
 
@@ -16,7 +17,6 @@ from p115client.tool.attr import normalize_attr, get_id_to_path, get_attr
 from p115client.tool.fs_files import fs_files_iter
 from p115client.tool.iterdir import iter_files_with_path_skim
 
-from app.chain.storage import StorageChain
 from app.core.config import settings, global_vars
 from app.log import logger
 from app.modules.filemanager.storages import transfer_process
@@ -25,6 +25,7 @@ from app.schemas.exception import StorageQueryError
 
 from .cache import IdPathCache, ItemIdCache
 from .tools import RateLimiter, get_ios_ua_app
+from .request_guard import GuardedP115Client, P115RequestGuard
 from .upload_policy import parse_size, should_skip_real_upload, should_wait_for_reuse
 
 
@@ -40,9 +41,15 @@ class P115Api:
         :param client: 115 网盘客户端实例
         :param disk_name: 网盘名称
         """
-        self.client = client
+        self._request_guard = P115RequestGuard(interval=1.0, circuit_seconds=600.0)
+        self.client = GuardedP115Client(client, self._request_guard)
         self._disk_name = disk_name
         self.upload_config = upload_config or {}
+        self._list_lock = Lock()
+        self._usage_lock = Lock()
+        self._usage_cache: Optional[StorageUsage] = None
+        self._usage_cache_time = 0.0
+        self._usage_cache_ttl = 60.0
         self._id_cache: IdPathCache = IdPathCache(maxsize=4096)
         self._id_item_cache: ItemIdCache = ItemIdCache(maxsize=4096)
         self.transtype = {"move": "移动", "copy": "复制"}
@@ -182,7 +189,18 @@ class P115Api:
 
     def list(self, fileitem: FileItem) -> List[FileItem]:
         """
-        浏览文件或目录
+        浏览文件或目录，并避免同一实例并发扫描
+
+        :param fileitem (FileItem): 文件项，可以是文件或目录
+
+        :return List: 文件项列表
+        """
+        with self._list_lock:
+            return self._list_unlocked(fileitem)
+
+    def _list_unlocked(self, fileitem: FileItem) -> List[FileItem]:
+        """
+        执行单次目录扫描
 
         :param fileitem (FileItem): 文件项，可以是文件或目录
 
@@ -206,7 +224,7 @@ class P115Api:
         items = []
         try:
             for data in fs_files_iter(
-                self.client, file_id, cooldown=1.5, **get_ios_ua_app(app=False)
+                self.client, file_id, cooldown=2, **get_ios_ua_app(app=False)
             ):
                 logger.debug(f"【115上传增强】浏览目录 {data}")
                 for item in data.get("data", []):
@@ -250,44 +268,13 @@ class P115Api:
                     self._id_item_cache.remove(id=int(file_id))
                 except Exception:
                     pass
-            try:
-                storage_chain = StorageChain()
-                fallback_dict = fileitem.model_dump(exclude={"storage"})
-                if isinstance(e, P115NotADirectoryError):
-                    fallback_dict["fileid"] = None
-                fileitem = FileItem(
-                    storage="u115",
-                    **fallback_dict,
-                )
-                fallback_items = storage_chain.list_files(
-                    fileitem=fileitem, recursion=False
-                )
-                if fallback_items:
-                    result_items = []
-                    for item in fallback_items:
-                        if item.fileid:
-                            self._id_cache.add_cache(
-                                id=int(item.fileid), directory=item.path.rstrip("/")
-                            )
-                            self._id_item_cache.add_cache(
-                                id=int(item.fileid),
-                                item={
-                                    "path": item.path,
-                                    "id": int(item.fileid),
-                                    "size": item.size,
-                                    "modify_time": item.modify_time,
-                                    "pickcode": item.pickcode,
-                                    "is_dir": bool(item.type == "dir"),
-                                },
-                            )
-                        result_item = FileItem(
-                            storage=self._disk_name,
-                            **item.model_dump(exclude={"storage"}),
-                        )
-                        result_items.append(result_item)
-                    return result_items
-            except Exception as e:
-                logger.error(f"【115上传增强】获取信息失败（原版）: {str(e)}")
+            if isinstance(e, P115NotADirectoryError) and file_id and file_id != "0":
+                try:
+                    self._id_cache.remove(id=int(file_id))
+                    self._id_item_cache.remove(id=int(file_id))
+                except Exception:
+                    pass
+            logger.error(f"【115上传增强】Plus 目录查询失败: {e}")
             return items
         return items
 
@@ -444,20 +431,8 @@ class P115Api:
         except (FileNotFoundError, NotADirectoryError):
             return None
         except Exception as e:
-            try:
-                file_item = self._get_u115_item(path)
-            except Exception as fallback_error:
-                raise StorageQueryError(
-                    f"【115上传增强】查询文件信息失败: {path} - {e}; "
-                    f"u115 降级查询失败: {fallback_error}"
-                ) from fallback_error
-            if file_item:
-                logger.warning(
-                    f"【115上传增强】Web API 查询失败，已通过 u115 获取: {path}"
-                )
-                return file_item
             raise StorageQueryError(
-                f"【115上传增强】查询文件信息失败: {path} - {e}"
+                f"【115上传增强】Plus 查询文件信息失败: {path} - {e}"
             ) from e
 
     def _get_u115_item(self, path: Path) -> Optional[FileItem]:
@@ -1348,20 +1323,31 @@ class P115Api:
 
     def usage(self) -> Optional[StorageUsage]:
         """
-        获取存储使用情况
+        获取存储使用情况并使用短期缓存
 
-        :return StorageUsage: 存储使用情况对象，包含总容量和可用容量，获取失败返回 None
+        :return StorageUsage: 存储使用情况对象，获取失败返回 None
         """
-        try:
-            resp = self.client.fs_index_info(0, **get_ios_ua_app(app=False))
-            check_response(resp)
-            return StorageUsage(
-                total=resp["data"]["space_info"]["all_total"]["size"],
-                available=int(resp["data"]["space_info"]["all_total"]["size"])
-                - int(resp["data"]["space_info"]["all_use"]["size"]),
-            )
-        except Exception:
-            return None
+        with self._usage_lock:
+            now = monotonic()
+            if (
+                self._usage_cache
+                and now - self._usage_cache_time < self._usage_cache_ttl
+            ):
+                return self._usage_cache
+            try:
+                resp = self.client.fs_index_info(0, **get_ios_ua_app(app=False))
+                check_response(resp)
+                usage = StorageUsage(
+                    total=resp["data"]["space_info"]["all_total"]["size"],
+                    available=int(resp["data"]["space_info"]["all_total"]["size"])
+                    - int(resp["data"]["space_info"]["all_use"]["size"]),
+                )
+                self._usage_cache = usage
+                self._usage_cache_time = monotonic()
+                return usage
+            except Exception as error:
+                logger.warning(f"【115上传增强】获取存储使用情况失败: {error}")
+                return self._usage_cache
 
     def support_transtype(self) -> dict:
         """
