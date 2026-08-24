@@ -8,7 +8,9 @@ from app.schemas.types import ChainEventType
 from app.helper.storage import StorageHelper
 from app.schemas import StorageOperSelectionEventData, FileItem, StorageUsage
 
+from .account import P115AccountService
 from .p115_api import P115Api
+from .request_guard import P115RequestGuard
 from .p115_client import create_client, build_timeout_config
 
 
@@ -45,6 +47,8 @@ class P115UploadEnhancer(_PluginBase):
     _disk_name = None
     _p115_api = None
     _cookie = None
+    _account_service = None
+    _config = {}
 
     def __init__(self):
         """
@@ -61,6 +65,7 @@ class P115UploadEnhancer(_PluginBase):
         if not config:
             return
 
+        self._config = dict(config)
         _, form_defaults = self.get_form()
         merged = {**form_defaults, **config}
         if merged != config:
@@ -80,6 +85,13 @@ class P115UploadEnhancer(_PluginBase):
 
             self._enabled = config.get("enabled")
             self._cookie = config.get("cookie")
+
+            if not self._cookie:
+                self._account_service = P115AccountService(
+                    client=None,
+                    guard=P115RequestGuard(interval=1.0, circuit_seconds=600.0),
+                )
+                return
 
             try:
                 timeout_kwargs = {}
@@ -106,6 +118,10 @@ class P115UploadEnhancer(_PluginBase):
                     client=self._client,
                     disk_name=self._disk_name,
                     upload_config=config,
+                )
+                self._account_service = P115AccountService(
+                    client=self._p115_api.client,
+                    guard=self._p115_api._request_guard,
                 )
             except Exception as e:
                 logger.error(f"115 网盘客户端创建失败: {e}")
@@ -141,8 +157,109 @@ class P115UploadEnhancer(_PluginBase):
                 "methods": ["POST"],
                 "summary": "清理缓存",
                 "description": "清理115网盘文件路径ID缓存和文件详情ID缓存",
-            }
+            },
+            {
+                "path": "/account_status",
+                "endpoint": self.account_status,
+                "auth": "bear",
+                "methods": ["GET"],
+                "summary": "获取115账户状态",
+                "description": "检查Cookie并获取115账户和空间信息",
+            },
+            {
+                "path": "/refresh_account_status",
+                "endpoint": self.refresh_account_status,
+                "auth": "bear",
+                "methods": ["POST"],
+                "summary": "刷新115账户状态",
+                "description": "强制刷新115账户和空间信息",
+            },
+            {
+                "path": "/get_qrcode",
+                "endpoint": self.get_qrcode,
+                "auth": "bear",
+                "methods": ["GET"],
+                "summary": "获取115登录二维码",
+                "description": "获取115扫码登录二维码",
+            },
+            {
+                "path": "/check_qrcode",
+                "endpoint": self.check_qrcode,
+                "auth": "bear",
+                "methods": ["GET"],
+                "summary": "检查115二维码",
+                "description": "检查115扫码登录状态",
+            },
         ]
+
+    def account_status(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        获取 Cookie 有效性、115账户信息和空间信息
+
+        :return Dict: 账户状态
+        """
+        if not self._account_service:
+            return {
+                "success": False,
+                "cookie_valid": False,
+                "error_message": "请在配置页面中设置有效的115网盘Cookie",
+            }
+        return self._account_service.get_status()
+
+    def refresh_account_status(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        强制刷新 Cookie、账户信息和空间信息
+
+        :return Dict: 账户状态
+        """
+        if not self._account_service:
+            return self.account_status()
+        return self._account_service.get_status(force=True)
+
+    def get_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        获取115扫码登录二维码
+
+        :return Dict: 二维码数据
+        """
+        if not self._account_service:
+            return {"success": False, "msg": "客户端尚未初始化"}
+        try:
+            return self._account_service.get_qrcode()
+        except Exception as error:
+            logger.error(f"【115上传增强】获取扫码二维码失败: {error}", exc_info=True)
+            return {"success": False, "msg": str(error)}
+
+    def check_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        检查115扫码登录状态并保存 Cookie
+
+        :param kwargs (Dict): 二维码参数
+        :return Dict: 二维码状态
+        """
+        if not self._account_service:
+            return {"status": "error", "msg": "客户端尚未初始化"}
+        uid = str(kwargs.get("uid", ""))
+        login_time = str(kwargs.get("time", ""))
+        sign = str(kwargs.get("sign", ""))
+        client_type = str(kwargs.get("client_type", "alipaymini"))
+        try:
+            result = self._account_service.check_qrcode(
+                uid, login_time, sign, client_type
+            )
+            cookie = result.get("cookie")
+            if result.get("status") == "success" and cookie:
+                config = dict(self._config)
+                config["cookie"] = cookie
+                self.update_config(config)
+                self._config = config
+                self._cookie = cookie
+                self.init_plugin(config)
+                self._account_service.clear_status_cache()
+            return result
+        except Exception as error:
+            logger.error(f"【115上传增强】检查扫码状态失败: {error}", exc_info=True)
+            return {"status": "error", "msg": str(error)}
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
         """
@@ -410,32 +527,28 @@ class P115UploadEnhancer(_PluginBase):
                         "content": [
                             {
                                 "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [{"component": "VBtn", "props": {"color": "primary", "variant": "elevated", "prepend-icon": "mdi-qrcode", "block": True}, "text": "获取扫码二维码", "events": {"click": {"api": "plugin/P115UploadEnhancer/get_qrcode", "method": "get"}}}],
+                            },
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [{"component": "VBtn", "props": {"color": "secondary", "variant": "outlined", "prepend-icon": "mdi-account-check", "block": True}, "text": "检查 Cookie", "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}}}],
+                            },
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [{"component": "VBtn", "props": {"color": "warning", "variant": "outlined", "prepend-icon": "mdi-delete-sweep", "block": True}, "text": "清理缓存", "events": {"click": {"api": "plugin/P115UploadEnhancer/clear_cache", "method": "post"}}}],
+                            },
+                        ],
+                    },
+                    {
+                        "component": "VRow",
+                        "content": [
+                            {
+                                "component": "VCol",
                                 "props": {"cols": 12},
-                                "content": [
-                                    {
-                                        "component": "VAlert",
-                                        "props": {
-                                            "type": "warning",
-                                            "variant": "tonal",
-                                            "density": "compact",
-                                            "class": "mt-2",
-                                        },
-                                        "content": [
-                                            {
-                                                "component": "div",
-                                                "text": "重要提示：",
-                                            },
-                                            {
-                                                "component": "div",
-                                                "text": "• 所有操作均为 Cookie 接口调用，请确保 Cookie 有效",
-                                            },
-                                            {
-                                                "component": "div",
-                                                "text": "• Cookie 可以复用 115 网盘 STRM 助手的配置，无需重复填写",
-                                            },
-                                        ],
-                                    },
-                                ],
+                                "content": [{"component": "VAlert", "props": {"type": "info", "variant": "tonal", "density": "compact"}, "text": "可在这里扫码获取 Cookie、检查账户状态或清理本地路径缓存。清理缓存不会删除网盘文件，也不会清除 Cookie。"}],
                             },
                         ],
                     },
@@ -465,45 +578,53 @@ class P115UploadEnhancer(_PluginBase):
 
     def get_page(self) -> List[dict]:
         """
-        获取插件数据页面
+        获取插件主页面
 
         :return List: 插件数据页面配置列表
         """
+        status = self.account_status()
+        if status.get("success"):
+            user_info = status.get("user_info") or {}
+            storage_info = status.get("storage_info") or {}
+            status_text = (
+                f"Cookie：有效\n"
+                f"用户名：{user_info.get('name') or '未知'}\n"
+                f"VIP：{'永久' if user_info.get('is_forever_vip') else '是' if user_info.get('is_vip') else '否'}\n"
+                f"VIP到期：{user_info.get('vip_expire_date') or '无'}\n"
+                f"总空间：{storage_info.get('total') or '未知'}\n"
+                f"已用空间：{storage_info.get('used') or '未知'}\n"
+                f"剩余空间：{storage_info.get('remaining') or '未知'}"
+            )
+            alert_type = "success"
+        else:
+            status_text = status.get(
+                "error_message", "请在配置页面中设置有效的115网盘Cookie"
+            )
+            alert_type = "warning"
         return [
             {
                 "component": "VCard",
                 "props": {"variant": "outlined"},
                 "content": [
+                    {"component": "VCardTitle", "text": "115账户信息"},
                     {
                         "component": "VCardText",
-                        "props": {"class": "pa-6 d-flex flex-column align-center"},
                         "content": [
                             {
-                                "component": "VBtn",
-                                "props": {
-                                    "color": "primary",
-                                    "variant": "elevated",
-                                    "size": "large",
-                                    "prepend-icon": "mdi-delete-sweep",
-                                    "class": "mb-3",
-                                },
-                                "text": "清理缓存",
-                                "events": {
-                                    "click": {
-                                        "api": "plugin/P115UploadEnhancer/clear_cache",
-                                        "method": "post",
-                                    },
-                                },
+                                "component": "VAlert",
+                                "props": {"type": alert_type, "variant": "tonal", "white-space": "pre-line"},
+                                "text": status_text,
                             },
                             {
-                                "component": "div",
-                                "props": {"class": "text-caption text-medium-emphasis"},
-                                "text": "清理115网盘文件路径ID缓存和文件详情ID缓存",
+                                "component": "VBtn",
+                                "props": {"color": "primary", "prepend-icon": "mdi-account-check", "class": "mt-3"},
+                                "text": "刷新账户信息",
+                                "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}},
                             },
                         ],
                     },
                 ],
-            },
+            }
         ]
 
     def get_module(self) -> Dict[str, Any]:
