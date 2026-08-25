@@ -356,7 +356,10 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 
 - 用户明确要求：每次修复、功能增加或版本升级，都必须同步更新 `package.v2.json`
 - 每次变更版本号递增 `0.0.1`
-- 本轮已将插件代码版本从 `1.0.2` 同步升级为 `1.0.4`
+- 每次变更必须在 `history` 中新增与当前版本号完全一致的记录
+- `package.v2.json` 的 `version`、插件代码 `plugin_version` 和 `history` 最新键必须三者一致
+- 本轮已补充 `v1.0.5` 的 history 记录，描述扫码入口调用方式修复和账户信息逐行布局优化
+- 后续提交前必须执行版本字段和 history 最新键一致性检查
 - `package.v2.json` 的 `P115UploadEnhancer.version` 已同步为 `1.0.4`
 - 已新增 `v1.0.4` 历史记录
 - 已完成 Python 编译、JSON 校验和代码版本/清单版本一致性检查
