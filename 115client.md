@@ -440,6 +440,14 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - `package.v2.json` 已同步两个插件的版本和 history
 - 传统版不支持 native `u115` 或 CloudDrive2
 
+### 2026-08-25：两个插件版本统一为1.1.0
+
+- `P115UploadEnhancer` 的 `plugin_version` 从 `1.0.5` 更新为 `1.1.0`
+- `P115UploadEnhancerVUE` 的 `plugin_version` 从 `1.0.0` 更新为 `1.1.0`
+- `package.v2.json` 中两个插件的 `version` 均同步为 `1.1.0`
+- 两个插件的 `history` 均新增 `v1.1.0` 记录
+- 版本规则继续有效：代码版本、package version、history 最新键必须一致
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
