@@ -17,7 +17,7 @@
     "name": "115上传增强",
     "description": "提供115网盘Plus存储模块并增强上传、秒传等待和失败处理。",
     "labels": "云盘,上传,115网盘Plus",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
     "author": "beatter789",
     "system_version": ">=2.15.2",

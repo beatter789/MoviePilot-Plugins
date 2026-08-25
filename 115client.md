@@ -362,6 +362,17 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - 已完成 Python 编译、JSON 校验和代码版本/清单版本一致性检查
 - 已提交：`28ce6b9 chore(p115uploadenhancer): bump version to 1.0.4`
 
+### 2026-08-24：v1.0.5 扫码入口与账户页面布局修复
+
+- 参考 P115StrmHelper，扫码 API 保持 GET 方式，修正配置页按钮调用方式
+- 配置页扫码按钮改为调用 `plugin/P115UploadEnhancer/get_qrcode` 的 GET 接口
+- 主页面账户信息改为逐行显示：Cookie、用户名、VIP、VIP到期、总空间、已用空间、剩余空间
+- 账户状态刷新按钮保留在主页面
+- 版本从 `1.0.4` 升级为 `1.0.5`
+- `package.v2.json` 已同步为 `1.0.5`
+- Python 编译、JSON 校验和 9 项 Mock 测试通过
+- 由于当前仓库没有 P115StrmHelper 的 `dist/assets` 前端构建产物，本轮继续使用宿主 VForm；若 GET 按钮仍无反应，需要在 MoviePilot 宿主确认插件 API 事件协议或提供前端构建方式
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。

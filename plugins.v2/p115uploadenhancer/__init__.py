@@ -29,7 +29,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.0.4"
+    plugin_version = "1.0.5"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -551,7 +551,7 @@ class P115UploadEnhancer(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12, "md": 4},
-                                "content": [{"component": "VBtn", "props": {"color": "primary", "variant": "elevated", "prepend-icon": "mdi-qrcode", "block": True}, "text": "获取扫码二维码", "events": {"click": {"api": "plugin/P115UploadEnhancer/get_qrcode", "method": "get"}}}],
+                                "content": [{"component": "VBtn", "props": {"color": "primary", "variant": "elevated", "prepend-icon": "mdi-qrcode", "block": True}, "text": "获取扫码二维码", "events": {"click": {"api": "plugin/P115UploadEnhancer/get_qrcode", "method": "post"}}}],
                             },
                             {
                                 "component": "VCol",
@@ -624,6 +624,52 @@ class P115UploadEnhancer(_PluginBase):
                 "error_message", "请在配置页面中设置有效的115网盘Cookie"
             )
             alert_type = "warning"
+        rows = []
+        if status.get("success"):
+            user_info = status.get("user_info") or {}
+            storage_info = status.get("storage_info") or {}
+            rows = [
+                ("Cookie", "有效"),
+                ("用户名", user_info.get("name") or "未知"),
+                (
+                    "VIP",
+                    "永久" if user_info.get("is_forever_vip") else "是" if user_info.get("is_vip") else "否",
+                ),
+                ("VIP到期", user_info.get("vip_expire_date") or "无"),
+                ("总空间", storage_info.get("total") or "未知"),
+                ("已用空间", storage_info.get("used") or "未知"),
+                ("剩余空间", storage_info.get("remaining") or "未知"),
+            ]
+        else:
+            rows = [("Cookie", status_text)]
+        row_content = []
+        for label, value in rows:
+            row_content.append(
+                {
+                    "component": "VRow",
+                    "props": {"dense": True, "class": "py-1"},
+                    "content": [
+                        {
+                            "component": "VCol",
+                            "props": {"cols": 4, "sm": 3, "class": "text-medium-emphasis"},
+                            "text": label,
+                        },
+                        {
+                            "component": "VCol",
+                            "props": {"cols": 8, "sm": 9},
+                            "text": value,
+                        },
+                    ],
+                }
+            )
+        row_content.append(
+            {
+                "component": "VBtn",
+                "props": {"color": "primary", "prepend-icon": "mdi-account-check", "class": "mt-3"},
+                "text": "刷新账户信息",
+                "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}},
+            }
+        )
         return [
             {
                 "component": "VCard",
@@ -635,15 +681,10 @@ class P115UploadEnhancer(_PluginBase):
                         "content": [
                             {
                                 "component": "VAlert",
-                                "props": {"type": alert_type, "variant": "tonal", "white-space": "pre-line"},
-                                "text": status_text,
+                                "props": {"type": alert_type, "variant": "tonal"},
+                                "text": status_text if not status.get("success") else "账户状态正常",
                             },
-                            {
-                                "component": "VBtn",
-                                "props": {"color": "primary", "prepend-icon": "mdi-account-check", "class": "mt-3"},
-                                "text": "刷新账户信息",
-                                "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}},
-                            },
+                            *row_content,
                         ],
                     },
                 ],
