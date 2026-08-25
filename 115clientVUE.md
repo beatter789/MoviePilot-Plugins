@@ -2,28 +2,31 @@
 
 ## 当前状态
 
-- 插件名称：115上传增强VUE
-- 插件 ID：P115UploadEnhancerVUE
+- 插件：`P115UploadEnhancerVUE`
 - 目录：`plugins.v2/p115uploadenhancervue`
-- 当前版本：1.0.0
+- 当前代码版本：`1.1.0`
 - 前端目录：`frontend/p115uploadenhancervue`
-- 来源：从 `P115UploadEnhancer` 的 Vue 1.0.8 实现独立复制
+- 接口前缀：`plugin/P115UploadEnhancerVUE/...`
+- 本插件与传统 `P115UploadEnhancer` 独立部署；传统版记录见 `115client.md`。
 
-## 已知问题（本轮不处理）
+## 拆分与实现历史
 
-Vue 插件当前已知错误：
+- `v1.0.0`：从传统插件 Vue 1.0.8 实现独立拆分，隔离目录、配置前缀和接口路径。
+- `v1.1.0`：与传统版统一版本基线；Vue 代码和构建产物保持独立。
+- Vue 页面包含账户信息、配置页面、二维码弹窗、扫码状态轮询、Cookie 保存和账户状态刷新。
+- 构建产物位于插件目录的 `dist/assets`；源码位于 `frontend/p115uploadenhancervue`。
 
-```text
-组件加载错误，无法加载组件，请稍后再试
-```
+## 已知问题与范围
 
-该问题记录在本文档中，作为新插件的待处理问题。本轮只完成插件拆分、目录隔离和版本初始化，不排查宿主 Vue 组件加载协议、联邦入口或资源加载问题。
+- 曾记录宿主报错“组件加载错误，无法加载组件，请稍后再试”；问题涉及 MoviePilot 的 Vue 组件协议、联邦入口或资源加载，需在 Vue 专项任务中处理。
+- 本项目只处理传统插件，不在此文档中修改或验证 Vue 实现。
 
-## 版本规则
+## Vue 版本规则
 
-每次修复、功能增加或版本升级，必须同步更新 `package.v2.json`：
+每次 Vue 插件修复、功能增加或版本升级，都必须同步更新 `package.v2.json`：
 
-1. `plugin_version`、`package.v2.json` 的 `version` 和 `history` 最新键必须一致；
-2. 版本号每次递增 `0.0.1`；
-3. `history` 必须新增当前版本对应的记录；
-4. 不记录 Cookie、Token 或其他敏感信息。
+1. 版本号递增 `0.0.1`；
+2. `plugin_version`、`package.v2.json` 的 `version` 和 `history` 最新键必须完全一致；
+3. `history` 必须新增当前版本记录；
+4. 提交前必须执行版本字段与 `history` 最新键一致性检查；
+5. 不记录 Cookie、Token、密码、Machine ID 或其他账号秘密。

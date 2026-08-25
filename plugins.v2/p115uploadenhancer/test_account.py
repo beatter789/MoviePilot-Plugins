@@ -1,18 +1,11 @@
-import importlib
 import sys
 import types
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 p115client_stub = types.ModuleType("p115client")
-p115client_stub.P115Client = MagicMock()
 p115client_stub.check_response = lambda response: response
 sys.modules.setdefault("p115client", p115client_stub)
-
-qrcode_stub = types.ModuleType("qrcode")
-qrcode_stub.make = lambda content: MagicMock()
-sys.modules.setdefault("qrcode", qrcode_stub)
 
 from account import P115AccountService
 from request_guard import P115RequestGuard
@@ -68,17 +61,6 @@ class AccountServiceTest(unittest.TestCase):
             "请在配置页面中设置有效的115网盘Cookie",
         )
         self.assertEqual(service._status_cache_ttl, 300.0)
-
-    def test_qrcode_status_mapping(self) -> None:
-        """
-        测试二维码等待状态映射
-        """
-        service = P115AccountService(None, P115RequestGuard(interval=0))
-        with patch("account.P115Client.login_qrcode_scan_status") as status_call:
-            status_call.return_value = {"state": True, "data": {"status": 0}}
-            result = service.check_qrcode("uid", "time", "sign")
-        self.assertEqual(result["status"], "waiting")
-
 
 if __name__ == "__main__":
     unittest.main()

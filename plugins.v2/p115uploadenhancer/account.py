@@ -10,7 +10,7 @@ except ImportError:
 
 class P115AccountService:
     """
-    115 登录二维码、Cookie 检查和账户状态服务
+    115 Cookie 检查和账户状态服务
     """
 
     def __init__(self, client: Any, guard: P115RequestGuard):

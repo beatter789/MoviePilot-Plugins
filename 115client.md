@@ -1,190 +1,33 @@
-# 115上传增强工作记录
+# 115上传增强（传统版）工作记录
 
-## 2026-06-09：需求确认与 API 审查
+## 当前范围
 
-### 用户目标
+- 插件：`P115UploadEnhancer`
+- 目录：`plugins.v2/p115uploadenhancer`
+- 当前版本：`1.1.1`
+- 作者：beatter789（<https://github.com/beatter789>）
+- 本文只记录传统 VForm 版；Vue 版记录在 `115clientVUE.md`。
 
-- 在 `MoviePilot-Plugins-main` 新增独立插件
-- 插件名称：115上传增强
-- 只支持 115网盘Plus
-- 原 `MoviePilot-Plugins-main-v2` 中的 `P115StrmHelper` 不做修改
-- 作者：beatter789
-- 作者主页：`https://github.com/beatter789`
-- 后续每轮工作结束都更新本文件
+## 功能与兼容约束
 
-### 已检查来源
+- 独立提供 `115网盘Plus` 存储模块，并增强上传、SHA1 秒传等待和失败处理。
+- 只支持 `115网盘Plus`，不支持 CloudDrive2，也不接管 MoviePilot 原生 `u115`。
+- 不能与原 `P115Disk` 同时启用；使用本插件时关闭 `P115StrmHelper` 的“上传模块增强”。
+- 插件配置前缀为 `p115uploadenhancer_`，默认超时和慢请求超时均可配置。
 
-- `MoviePilot-Plugins-main-v2/plugins.v2/p115disk/`
-  - Plus 存储模块基础实现
-  - `__init__.py`
-  - `p115_api.py`
-  - `p115_client.py`
-  - `cache.py`
-  - `tools.py`
-  - `requirements.txt`
-- `MoviePilot-Plugins-main-v2/plugins.v2/p115strmhelper/core/p115disk.py`
-  - 原上传增强实现参考
-- `MoviePilot-Plugins-main-v2/plugins.v2/p115strmhelper/patch/p115disk_upload.py`
-  - 原 P115Disk 上传猴子补丁入口
-- `p115client-main/p115client/tool/upload.py`
-  - 115 秒传存在性判断和上传初始化实现
-- `CloudDrive2_gRPC_API_Guide.md`
-  - CloudDrive2 Remote Upload 哈希与状态协议
+## 上传策略
 
-### API 结论
+- 通过 `upload_file_init` 提交文件大小、完整 SHA1，以及大文件所需的范围 SHA1。
+- 返回 `reuse` 表示秒传成功，直接结束上传。
+- “跳过等待大小”以内的文件在首次秒传失败后进入真实上传；超过阈值的文件按“等待间隔”重试，达到“最长等待”后进入正常 OSS 分片上传。
+- “强制等待大小”为 0 时关闭强制标记；非 0 时仅对达到阈值的文件记录强制等待日志，不改变普通等待的时间和结果。
+- “秒传失败跳过上传”开启后，按配置阈值跳过真实上传并返回失败。
+- 大小配置支持纯字节或 `K`、`M`、`G`、`T`，使用 1024 进制换算。
 
-#### 115网盘Plus
-
-`p115client` 支持：
-
-- `upload_file_init`
-- `upload_for_check_existence(sha1, size)`
-- `reuse=True` 表示初始化上传阶段秒传成功
-- 大于等于 1 MB 时支持范围 SHA1 二次校验
-
-Plus 原始 `P115Api.upload` 已经计算完整 SHA1，并通过 `read_range_bytes_or_hash` 进行初始化上传和秒传判断。
-
-#### CloudDrive2
-
-CloudDrive2 Remote Upload 支持：
-
-- MD5
-- SHA1
-- PikPakSha1
-- `known_hashes`
-- 服务端发送 `RemoteHashDataRequest`
-- 客户端通过 `RemoteHashProgress` 回报哈希
-- 最终状态可能为 `Finish`、`Skipped`、`Cancelled`、`Error` 等
-
-但文档没有发现独立的“仅通过 SHA1 查询是否可秒传”RPC。Remote Upload 是上传协商流程，是否跳过真实传输由 CloudDrive2 服务端和目标云盘驱动决定。
-
-CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
-
-本次独立插件不包含 CloudDrive2 代码。
-
-### 已完成
-
-- 在目标仓库复制 `p115disk` 基础代码到：
-  - `plugins.v2/p115uploadenhancer/`
-- 新插件主类改为 `P115UploadEnhancer`
-- 插件目录为 `p115uploadenhancer`
-- 插件显示名改为 `115上传增强`
-- 作者信息改为 `beatter789`
-- 配置前缀改为 `p115uploadenhancer_`
-- 版本设置为 `1.0.0`
-- `package.v2.json` 已加入 `P115UploadEnhancer`
-- Plus `P115Api` 已开始整合上传增强配置和等待逻辑
-
-### 重要兼容约束
-
-新插件会提供 `115网盘Plus` 存储模块，因此不能和原 `P115Disk` 同时启用。
-
-使用新插件时需要：
-
-1. 停用原 `P115Disk`
-2. 关闭 `P115StrmHelper` 的“上传模块增强”
-3. 启用 `P115UploadEnhancer`
-4. 在新插件中配置 Cookie
-5. 确认 MoviePilot 使用 `115网盘Plus`
-
-原 `P115StrmHelper` 源码本轮没有修改。
-
-### 本轮实际变更
-
-- 新增 `plugins.v2/p115uploadenhancer/`，复制 Plus 存储基础代码
-- 主类改为 `P115UploadEnhancer`
-- `package.v2.json` 新增 `P115UploadEnhancer` 条目
-- 将 Plus `P115Api.upload` 复制到独立插件并接入上传配置
-- 增加基础等待、等待超时、阈值和秒传失败跳过逻辑
-- 将复制代码中的缓存命名空间改为 `p115uploadenhancer_`
-- 新增插件 README
-- 确认原 `MoviePilot-Plugins-main-v2` 未修改
-
-### 本轮验证
-
-- 首次递归编译命令因 PowerShell 不展开通配符而失败，已改用逐文件路径编译
-- JSON 结构校验通过
-- 独立插件 Python 文件编译通过
-- 目标目录不是 Git 工作树，无法在该目录直接执行 Git 状态检查
-- 尚未完成运行时导入测试和版本门禁
-- 当前代码仍需清理部分 `P115Disk` 日志/API 文本，并完成上传通知独立化
-
-### 待完成
-
-- 完善独立插件配置页面中的上传增强配置项展示（本轮已加入基础字段）
-- 完成上传通知的独立实现
-- 清理复制代码中与旧插件无关的引用和日志名（仍有部分待清理）
-- 增加冲突检测，避免原 `P115Disk` 同时启用
-- 添加 README
-- 添加测试和静态校验
-- 检查 Python 语法、JSON、版本门禁和目录规范
-- 继续更新本文件
-
-### 本轮测试评估
-
-可以在当前环境完成：
-
-- Python 语法编译
-- JSON 解析
-- AST/静态结构检查
-- 目录名、主类名、清单键和版本一致性检查
-- 使用 Mock 替身测试部分秒传/等待策略
-
-当前环境不能完成：
-
-- MoviePilot 宿主真实加载
-- P115Disk/存储模块真实注册
-- 使用真实 Cookie 访问 115
-- 真实 SHA1 秒传判断
-- 真实 OSS 分片上传、Token 刷新和取消流程
-
-真实联调需要用户自己的 MoviePilot 环境和有效 115 Cookie。Cookie、Token、密码和 Machine ID 不要发送到聊天。
-
-### 本轮完成
-
-- 已完成目标仓库同步到 `F:\工作区\v1\_remote-check`
-- 已通过 Python 编译和 JSON 校验
-- 已通过插件 ID、目录、主类、版本和作者静态检查
-- 已通过 Git 暂存区 `diff --check`
-- 已创建提交：`a199586 feat(p115uploadenhancer): add standalone 115 plus upload enhancement`
-- Git 提交包含 AI 协作者信息
-- Harness 使用 `127.0.0.1:7890` 代理推送失败，提示代理无法连接；本地提交仍已完成
-- 需要用户在自己运行代理的 PowerShell 中推送
-
-### 本轮上传准备
-
-- 已确认目标仓库工作树为 `F:\工作区\v1\_remote-check`
-- 将把目标仓库同步为当前 `MoviePilot-Plugins-main` 的插件代码和清单
-- 本轮不上传 `CloudDrive2` 代码
-- 上传前会再次执行 Python 编译、JSON 校验、目录/类名/版本检查
-- 推送若受 GitHub 网络或凭据影响，将提供用户 PowerShell 推送命令
-
-### 2026-06-09：配置语义复核
-
-- `upload_module_skip_upload_wait_size` 单位为字节；文件大小小于等于该值时不等待秒传，直接进入真实上传
-- `upload_module_force_upload_wait_size` 单位为字节；当前独立实现配置非零后，仅文件大小大于等于该值时进入等待
-- `upload_module_skip_slow_upload_size` 单位为字节；“秒传失败跳过上传”开启后，阈值为 0 时所有秒传失败文件均返回失败，阈值非零时仅大于等于阈值的文件返回失败
-- 当前配置页尚未展示 `upload_module_skip_slow_upload_size` 输入框
-- 复核发现 `upload_module_enhancement` 总开关当前尚未接入上传方法判断，上传等待规则仍会运行；这是发布前需要修复的问题
-- 当前强制等待条件与原 P115StrmHelper 的动态等待语义并不完全一致，需要在下一版本修正后再建议正式使用
-
-### 2026-06-09：v1.0.1 配置与等待逻辑修复
-
-#### 已修复
-
-- `upload_module_enhancement` 总开关已真正接入上传逻辑
-- 删除首次秒传失败后提前退出等待循环的问题
-- 等待循环会按照配置间隔持续重试，直到秒传成功、用户取消或达到最长等待时间
-- 最长等待结束且未启用“秒传失败跳过上传”时进入正常 OSS 分片上传
-- 文件大小输入支持纯字节以及 `K`、`M`、`G`、`T` 单位，大小写不敏感，按 1024 进制换算
-- 配置页新增“秒传失败跳过上传大小”输入框
-- 删除未实现的通知配置项，避免界面给出无效开关
-- 删除 `package.v2.json` 的 `release: true`，避免没有 GitHub Release 时出现 404
-- 版本升级为 `1.0.1`
-
-#### 配置示例语义
+推荐起始配置：
 
 ```text
+启用上传增强：开启
 等待间隔：300
 最长等待：7200
 跳过等待大小：800M
@@ -192,262 +35,37 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 秒传失败跳过上传：关闭
 ```
 
-- 800MB 及以下首次秒传失败后直接真实上传
-- 大于 800MB 的文件每 5 分钟重试秒传
-- 任何一次 `reuse=True` 即秒传成功并结束
-- 最长等待 2 小时后仍不能秒传则正常分片上传
-- “强制等待大小”设置为 0 时关闭强制标记，不影响上述普通等待
+## 请求保护与账户状态
 
-#### 验证
+- `request_guard.py` 为本插件实例提供共享请求间隔和 HTTP 405 熔断；默认请求至少间隔 1 秒，405 后冷却 600 秒。
+- 目录分页请求使用 2 秒冷却；列表操作带实例级并发锁，空间用量使用 60 秒缓存。
+- 账户状态成功缓存 1 小时，失败缓存 5 分钟；账户接口只检查 Cookie、用户信息和空间信息，不提供扫码登录。
+- `clear_cache` 只清理本地路径 ID 和文件详情缓存，不删除网盘文件，也不清除 Cookie。
 
-- 所有插件 Python 文件编译通过
-- `package.v2.json` 解析通过
-- 插件 ID、目录、主类、作者和 `1.0.1` 版本一致性通过
-- 确认清单不再包含 `release` 字段
-- `test_upload_policy.py` 共 3 项测试通过：大小解析、等待阈值、秒传失败跳过真实上传
+## API 与测试
 
-### 2026-06-09：强制等待阈值语义说明
+- API：`GET /account_status`、`POST /refresh_account_status`、`POST /clear_cache`。
+- 传统插件测试位于 `plugins.v2/p115uploadenhancer/test_*.py`，使用标准库 `unittest`。
+- 提交前必须执行 Python 编译、JSON 解析、传统插件测试、`git diff --check` 和版本一致性检查。
+- 当前环境不能替代 MoviePilot 宿主完成真实插件加载、有效 Cookie 联调、115 秒传判断和 OSS 分片上传验证。
 
-当前 `1.0.1` 实现中：
+## 版本与提交强制约定
 
-- “跳过等待大小”决定是否进入等待：文件大小小于等于该值时直接真实上传，大于该值时进入等待
-- “强制等待大小”目前只判断并记录 `强制等待=是/否` 日志，不会改变等待时长、重试次数或超时后的上传结果
-- 配置 `跳过等待大小=800M`、`强制等待大小=5G` 时：
-  - 小于等于 800MB：首次秒传失败后直接真实上传
-  - 大于 800MB 且小于 5GB：进入普通等待
-  - 大于等于 5GB：进入相同等待流程，但日志标记为强制等待
-- 由于独立插件未移植原 P115StrmHelper 的中心测速决策，当前普通等待和强制等待没有实质行为差异
-- 若要让“强制等待”具有真实作用，需要下一版明确普通等待的提前退出条件，再让达到强制阈值的文件忽略提前退出并等待到总超时
+- 每次修复、功能增加或版本升级，都必须同步更新 `package.v2.json`。
+- 每次变更版本号递增 `0.0.1`。
+- 每次变更必须在 `history` 中新增与当前版本号完全一致的记录。
+- `package.v2.json` 的 `version`、插件代码 `plugin_version` 和 `history` 最新键必须三者一致。
+- 后续提交前必须执行版本字段和 `history` 最新键一致性检查，确认代码版本、package version、history 最新键完全一致后才允许提交或推送。
 
-### 2026-08-24：用户反馈 405/401 上传后查询异常
+## 变更历史（传统版）
 
-#### 日志结论
+- `v1.1.1`：清理传统版二维码遗留测试，移除过时二维码说明，收敛传统版工作记录。
+- `v1.1.0`：传统版与独立 Vue 版完成版本基线统一；Vue 迁移过程见 `115clientVUE.md`。
+- `v1.0.5`：恢复传统 VForm 配置页面，移除传统版扫码登录和 Vue 渲染代码。
+- `v1.0.2`：增加共享请求节流、405 熔断、列表并发锁和空间用量缓存。
+- `v1.0.1`：修复上传增强开关和等待重试逻辑，支持 K/M/G/T 大小输入。
+- `v1.0.0`：新增 115 网盘 Plus 独立存储模块与上传增强。
 
-- `HTTP Error 405: Method Not Allowed` 出现在独立插件 `P115Api._query_item()` 的 `get_id_to_path()` / `get_attr()` 查询链，不是上传等待逻辑本身
-- Plus 查询失败后，`get_item()` 会回退到 MoviePilot 原生 `u115` 存储
-- 原生 `u115` 返回 `HTTP 401 Unauthorized`，随后抛出“请先扫码登录”，说明 u115 存储没有有效登录状态或没有配置扫码登录
-- 405 本身不等于“频繁拉取导致风控”，当前代码已有 `get_item`、list、路径查询限流和缓存；日志不足以单独证明频率触发风控
+## 安全说明
 
-#### 可能原因排序
-
-1. 115 Web API 对当前请求方法/接口组合返回 405
-2. p115client、P115Disk 来源代码和当前 115 服务端接口不匹配
-3. 115 会话、设备签名或稳定点缓存失效，导致接口异常
-4. 短时间内反复 list/query 触发风控，可能性存在但尚未证实
-5. u115 降级链未登录，导致 405 后又出现 401
-
-#### 当前建议
-
-- 先不要反复刷新目录或重复重试，避免放大请求量
-- 确认新的 `115上传增强` 使用有效 Cookie
-- 如果 MoviePilot 同时启用了原生 u115 存储，完成扫码登录或暂时避免触发该降级链
-- 保留首次 405 前后的完整日志，用于区分接口不匹配和风控
-- 后续应增加 405 冷却熔断，避免 Web API 失败后连续调用 u115 降级；同时需要确认 p115client 版本和 P115Disk 版本是否匹配
-
-本轮未修改代码，仅完成日志分析和工作记录更新。
-
-### 2026-08-24：与原始 P115Disk 逐文件对比
-
-#### 对比结果
-
-- `p115_client.py`、`tools.py`、`requirements.txt` 与原始 Plus 插件一致
-- `cache.py` 仅将缓存命名空间从 `p115disk_` 改为 `p115uploadenhancer_`，属于必要隔离
-- `__init__.py` 主要差异为类名、插件元数据、配置前缀、上传配置注入和新增上传配置页面
-- `p115_api.py` 的公共 API 方法结构与原始文件一致，差异主要为上传策略和日志名称
-
-#### 发现并修复
-
-- 原始复制代码在 Plus 查询异常后会降级调用原生 `u115`
-- 该降级会导致 Plus 405 后继续触发原生 u115 401“请先扫码登录”，形成用户日志中的 405 + 401 混合错误
-- 独立插件已移除 `_get_u115_item()` 降级调用，Plus 查询失败现在直接抛出明确的 `Plus 查询文件信息失败`
-- 这样符合本插件只支持 `115网盘Plus` 的要求，也不会再把原生 u115 的登录状态混入 Plus 插件
-- 删除 `StorageChain` 导入后重新编译通过
-
-#### 尚未发现的结构性问题
-
-- 未发现独立插件缺少原始 P115Api 公共方法
-- 未发现 `p115_client.py`、依赖或 UA 工具被错误改写
-- 本轮只修改目标独立插件，没有修改原始 `MoviePilot-Plugins-main-v2`
-
-### 2026-08-24：检查 P115StrmHelper 速率限制
-
-- `utils/limiter.py` 提供 `RateLimiter(qps)` 和 `ApiEndpointCooldown(cooldown)`
-- `core/p115.py` 的分享接口按速度档位使用 0.25/0.5/1/1.5 秒冷却，注释明确 `pro.api.115.com` 风控严重
-- `api.py` 的 `browse_dir_api` 对网盘目录接口设置至少 2 秒间隔，并缓存目录结果
-- `api.py` 的 `fs_files_iter` 设置 `cooldown=2`，即分页目录请求之间至少间隔 2 秒
-- `core/p115.py` 的通用分页迭代器支持 cooldown，且会在每次接口调用前等待到达最小间隔
-- `core/u115_open.py` 的下载链接接口使用 `RateLimiter(qps=1.0)`，并处理 429/Retry-After
-- `core/p115disk.py` 上传初始化失败使用 3 次重试和 2、4 秒退避；秒传等待间隔由配置控制
-- P115StrmHelper 没有发现一个覆盖所有 115 接口的统一“每秒 2 次”全局限流器；它是按接口/操作分别限流、冷却和缓存
-- 独立 P115UploadEnhancer 当前 `p115_api.py` 的 `fs_files_iter` 仍使用 `cooldown=1.5`，比 P115StrmHelper 的目录分页 2 秒更激进
-- 独立插件当前 RateLimiter 也是按操作分别计数，`storage_usage`、`list`、`get_item` 等不会共享全局额度；这可能允许并发请求叠加
-- 后续应至少将目录分页 cooldown 提高到 2 秒，并为 115 API 增加跨操作全局请求锁/节流，以及 405 冷却熔断
-
-### 2026-08-24：v1.0.2 请求保护修复
-
-#### 已完成
-
-- 目录分页 `fs_files_iter` 的 cooldown 从 `1.5` 秒调整为 `2` 秒
-- 新增 `request_guard.py`，对独立插件内的 P115Client 调用增加共享请求节流，默认两次请求至少间隔 `1` 秒
-- 任一请求出现 HTTP 405 后开启 10 分钟熔断
-- 熔断期间不再向 115 发起请求，直接返回冷却提示
-- `list()` 增加实例级并发锁，避免同一插件实例同时扫描目录
-- `usage()` 增加 60 秒缓存和并发锁，避免 MoviePilot 重复请求存储用量
-- 移除 Plus 查询失败后调用原生 `u115` 的降级路径
-- 版本升级为 `1.0.2`
-
-#### 验证
-
-- 独立插件全部 Python 文件编译通过
-- JSON 解析和版本一致性通过
-- 原有 3 项上传策略测试通过
-- 新增 3 项请求防护测试通过：共享间隔、405 熔断、405 识别
-- 未修改 `MoviePilot-Plugins-main-v2`
-
-#### 注意
-
-- 共享节流只覆盖本独立插件实例；如果原生 u115、P115Disk 或其他插件同时启用，它们各自的请求不会共享此限流器
-- 405 熔断默认 600 秒（10 分钟），重启插件/容器后内存状态会清除
-- 这次修复降低请求频率，但不能保证 115 服务端一定不再返回 405；仍需观察真实环境日志
-
-### 2026-08-24：v1.0.3 扫码登录与账户状态
-
-#### 已完成
-
-- 新增 `account.py`，参考 P115StrmHelper 实现 115 二维码获取、扫码状态检查、登录结果 Cookie 解析、账户信息和空间信息查询
-- 配置页新增获取二维码、检查 Cookie、清理缓存按钮
-- 主页面显示 Cookie 状态、用户名、VIP 状态、VIP 到期时间、总空间、已用空间和剩余空间
-- 主页面的清理缓存按钮已移除，清理缓存移动到配置页面
-- 清理缓存只清理路径 ID 和文件详情本地缓存，不删除网盘文件、不清除 Cookie
-- Cookie 缺失或无效时显示 `请在配置页面中设置有效的115网盘Cookie`
-- 账户成功状态缓存 1 小时，失败状态缓存 5 分钟
-- 账户状态使用并发锁，避免页面刷新产生重复的用户信息和空间请求
-- 二维码状态由页面按约 2 秒轮询，登录成功后保存 Cookie 并重建客户端
-- 二维码获取、状态检查和账户请求均接入共享节流与 405 熔断
-- 新增 `qrcode` 依赖
-- 版本升级为 `1.0.3`
-
-#### 请求频率
-
-- 账户成功检查：默认最多每小时真实请求一次；主页面重复加载使用缓存
-- 账户检查失败：默认 5 分钟内使用失败缓存，不重复请求
-- 手动“检查 Cookie/刷新账户信息”：强制清除缓存并请求一次，但仍受共享节流和 405 熔断保护
-- 用户点击获取二维码：每次点击请求一次
-- 二维码状态轮询：前端建议约 2 秒一次；服务端不创建后台轮询任务
-- 二维码登录成功后立即停止前端轮询
-- 405 后沿用 10 分钟熔断
-
-#### 2026-08-24：页面反馈修复
-
-- 扫码按钮无反馈：为二维码、Cookie检查、账户刷新接口增加明确的开始/成功/失败日志和统一 `code/msg` 返回字段
-- Cookie 输入框上边框显示异常：VTextField 增加 `variant=outlined` 和 `density=comfortable`
-- 刷新账户信息和检查 Cookie 无日志：新增用户操作日志、未配置 Cookie 日志和检查结果日志
-- 主页面账户状态现在会直接调用账户状态接口，并显示 Cookie、用户名、VIP 和空间摘要
-- 当前 VForm 按钮事件可以调用后端接口并返回结果；若宿主不支持返回值绑定，二维码图片仍不会自动显示，自动轮询也需要后续使用 Vue 数据页面实现
-
-#### 测试
-
-- 全部 Python 文件编译通过
-- JSON 校验通过
-- 上传策略、请求保护、账户状态和二维码状态共 9 项 Mock 测试通过
-- 测试没有输出 Cookie 或完整登录响应
-
-### 2026-08-24：版本规则确认
-
-- 用户明确要求：每次修复、功能增加或版本升级，都必须同步更新 `package.v2.json`
-- 每次变更版本号递增 `0.0.1`
-- 每次变更必须在 `history` 中新增与当前版本号完全一致的记录
-- `package.v2.json` 的 `version`、插件代码 `plugin_version` 和 `history` 最新键必须三者一致
-- 本轮已补充 `v1.0.5` 的 history 记录，描述扫码入口调用方式修复和账户信息逐行布局优化
-- 后续提交前必须执行版本字段和 history 最新键一致性检查
-- `package.v2.json` 的 `P115UploadEnhancer.version` 已同步为 `1.0.4`
-- 已新增 `v1.0.4` 历史记录
-- 已完成 Python 编译、JSON 校验和代码版本/清单版本一致性检查
-- 已提交：`28ce6b9 chore(p115uploadenhancer): bump version to 1.0.4`
-
-### 2026-08-24：v1.0.5 扫码入口与账户页面布局修复
-
-- 参考 P115StrmHelper，扫码 API 保持 GET 方式，修正配置页按钮调用方式
-- 配置页扫码按钮改为调用 `plugin/P115UploadEnhancer/get_qrcode` 的 GET 接口
-- 主页面账户信息改为逐行显示：Cookie、用户名、VIP、VIP到期、总空间、已用空间、剩余空间
-- 账户状态刷新按钮保留在主页面
-- 版本从 `1.0.4` 升级为 `1.0.5`
-- `package.v2.json` 已同步为 `1.0.5`
-- Python 编译、JSON 校验和 9 项 Mock 测试通过
-- 由于当前仓库没有 P115StrmHelper 的 `dist/assets` 前端构建产物，本轮继续使用宿主 VForm；若 GET 按钮仍无反应，需要在 MoviePilot 宿主确认插件 API 事件协议或提供前端构建方式
-
-### 2026-08-24：v1.0.6 Vue扫码页面移植
-
-- 确认 `frontend/p115strmhelper/src/App.vue` 是 Vue 3 单文件组件
-- 确认扫码逻辑位于 `useQrCode.js` 和 `QrCodeDialog.vue`
-- 新增 `frontend/p115uploadenhancer/` Vue 前端工程
-- 移植二维码弹窗、二维码图片展示、3秒状态轮询、扫码成功保存 Cookie 和账户逐行页面
-- 新增 Vue 配置页面，替代传统 VForm 按钮调用
-- 插件主类新增 `get_render_mode()`，返回 `vue, dist/assets`
-- Vite 构建产物已复制到 `plugins.v2/p115uploadenhancer/dist/`
-- 版本升级为 `1.0.6`
-- `package.v2.json` 已同步更新版本和 `v1.0.6` history
-- 前端依赖安装和 `npm run build` 通过
-- Python 编译、JSON 校验和元数据检查通过
-
-### 2026-08-24：v1.0.6 Vue前端直接移植
-
-- 已确认 `frontend/p115strmhelper/src/App.vue` 为 Vue 3 单文件组件
-- 已确认扫码功能由 `useQrCode.js`、`QrCodeDialog.vue`、`Config.vue` 配合实现
-- 新增 `frontend/p115uploadenhancer/` 独立 Vue 工程
-- 移植并改造账户页、配置页、扫码弹窗和二维码自动轮询
-- 插件增加 `get_render_mode()`，使用 `vue, dist/assets`
-- 配置页支持显示二维码、3秒轮询、扫码成功保存 Cookie、检查 Cookie、清理缓存和保存上传配置
-- 主页面按行显示 Cookie、用户名、VIP、VIP到期、空间信息
-- 已安装前端依赖并执行 `npm run build` 成功
-- 构建产物已复制并强制纳入 `plugins.v2/p115uploadenhancer/dist/`
-- 版本已升级为 `1.0.6`
-- `package.v2.json` 已同步版本和 `v1.0.6` history
-- Python 编译、JSON 校验和原有 9 项 Mock 测试通过
-- 目标 Git 工作树最新提交：`f7c119d build(p115uploadenhancer): include Vue assets in plugin package`
-
-### 2026-08-25：v1.0.7 修复主页面 422
-
-- 主页面原先调用 `refresh_account_status` POST，宿主将空请求体校验为 422
-- 主页面已改为调用无参数的 `account_status` GET 接口
-- `account_status` 和 `refresh_account_status` 后端方法已移除不必要的 `**kwargs` 参数
-- Vue 前端已重新构建，构建产物已复制到插件 `dist/`
-- 版本升级为 `1.0.7`
-- `package.v2.json` 已新增 `v1.0.7` history 并同步版本
-- Python 编译和 JSON 校验通过
-
-### 2026-08-25：v1.0.8 恢复配置页面入口
-
-- 问题：Vue 主页面只显示账户信息和刷新按钮，配置页面入口消失
-- 原因：`App.vue` 改用动态组件后仍保留旧的 `tab` 状态逻辑，未实际渲染配置组件
-- 修复：恢复 P115StrmHelper 的 `currentComponent`、`shallowRef` 和 `switchComponent` 模式
-- 主页面新增“打开配置”按钮，并支持组件发出的 `config` 事件切换到配置页面
-- 配置保存后返回主页面，宿主 `showConfig` 消息可直接打开配置页
-- 版本升级为 `1.0.8`
-- `package.v2.json` 已同步新增 `v1.0.8` history
-- Vue 前端已重新构建，Python 编译和 JSON 校验通过
-
-### 2026-08-25：传统版恢复1.0.5并拆分Vue版
-
-- `P115UploadEnhancer` 恢复为传统 VForm 版本 `1.0.5`
-- 传统版移除 Vue 渲染模式、Vue `dist` 构建产物、扫码 API、二维码按钮和二维码服务代码
-- 传统版保留 115网盘Plus 存储、上传增强、Cookie 检查、账户状态和配置页缓存清理
-- 新增独立插件 `P115UploadEnhancerVUE`，目录为 `plugins.v2/p115uploadenhancervue`
-- Vue 版初始版本为 `1.0.0`，配置前缀与传统版隔离
-- Vue 版接口路径使用 `plugin/P115UploadEnhancerVUE/...`
-- Vue 版已复制前端源码并成功构建 `dist/assets`
-- Vue 组件加载错误记录在 `115clientVUE.md`，本轮不处理
-- `package.v2.json` 已同步两个插件的版本和 history
-- 传统版不支持 native `u115` 或 CloudDrive2
-
-### 2026-08-25：两个插件版本统一为1.1.0
-
-- `P115UploadEnhancer` 的 `plugin_version` 从 `1.0.5` 更新为 `1.1.0`
-- `P115UploadEnhancerVUE` 的 `plugin_version` 从 `1.0.0` 更新为 `1.1.0`
-- `package.v2.json` 中两个插件的 `version` 均同步为 `1.1.0`
-- 两个插件的 `history` 均新增 `v1.1.0` 记录
-- 版本规则继续有效：代码版本、package version、history 最新键必须一致
-
-### 安全说明
-
-本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
+本文不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
