@@ -416,6 +416,17 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - `package.v2.json` 已新增 `v1.0.7` history 并同步版本
 - Python 编译和 JSON 校验通过
 
+### 2026-08-25：v1.0.8 恢复配置页面入口
+
+- 问题：Vue 主页面只显示账户信息和刷新按钮，配置页面入口消失
+- 原因：`App.vue` 改用动态组件后仍保留旧的 `tab` 状态逻辑，未实际渲染配置组件
+- 修复：恢复 P115StrmHelper 的 `currentComponent`、`shallowRef` 和 `switchComponent` 模式
+- 主页面新增“打开配置”按钮，并支持组件发出的 `config` 事件切换到配置页面
+- 配置保存后返回主页面，宿主 `showConfig` 消息可直接打开配置页
+- 版本升级为 `1.0.8`
+- `package.v2.json` 已同步新增 `v1.0.8` history
+- Vue 前端已重新构建，Python 编译和 JSON 校验通过
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
