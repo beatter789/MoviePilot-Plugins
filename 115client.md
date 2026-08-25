@@ -376,6 +376,20 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - Python 编译、JSON 校验和 9 项 Mock 测试通过
 - 由于当前仓库没有 P115StrmHelper 的 `dist/assets` 前端构建产物，本轮继续使用宿主 VForm；若 GET 按钮仍无反应，需要在 MoviePilot 宿主确认插件 API 事件协议或提供前端构建方式
 
+### 2026-08-24：v1.0.6 Vue扫码页面移植
+
+- 确认 `frontend/p115strmhelper/src/App.vue` 是 Vue 3 单文件组件
+- 确认扫码逻辑位于 `useQrCode.js` 和 `QrCodeDialog.vue`
+- 新增 `frontend/p115uploadenhancer/` Vue 前端工程
+- 移植二维码弹窗、二维码图片展示、3秒状态轮询、扫码成功保存 Cookie 和账户逐行页面
+- 新增 Vue 配置页面，替代传统 VForm 按钮调用
+- 插件主类新增 `get_render_mode()`，返回 `vue, dist/assets`
+- Vite 构建产物已复制到 `plugins.v2/p115uploadenhancer/dist/`
+- 版本升级为 `1.0.6`
+- `package.v2.json` 已同步更新版本和 `v1.0.6` history
+- 前端依赖安装和 `npm run build` 通过
+- Python 编译、JSON 校验和元数据检查通过
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。

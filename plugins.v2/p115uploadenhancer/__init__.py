@@ -29,7 +29,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.0.5"
+    plugin_version = "1.0.6"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -282,9 +282,27 @@ class P115UploadEnhancer(_PluginBase):
             logger.error(f"【115上传增强】检查扫码状态失败: {error}", exc_info=True)
             return {"status": "error", "msg": str(error)}
 
-    def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
+    @staticmethod
+    def get_render_mode() -> Tuple[str, Optional[str]]:
         """
-        拼装插件配置页面
+        返回插件前端渲染模式
+
+        :return Tuple: Vue 渲染模式和前端资源目录
+        """
+        return "vue", "dist/assets"
+
+    def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
+        """
+        返回 Vue 配置页面的初始配置
+
+        :return Tuple: Vue 页面不使用 VForm，返回空页面和默认配置
+        """
+        return None, self.get_legacy_form()[1]
+
+    def get_legacy_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
+        """
+        保留旧版 VForm 配置结构
+
 
         :return Tuple: 页面配置和数据结构的元组
         """
