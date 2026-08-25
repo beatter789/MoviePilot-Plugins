@@ -17,21 +17,35 @@
     "name": "115上传增强",
     "description": "提供115网盘Plus存储模块并增强上传、秒传等待和失败处理。",
     "labels": "云盘,上传,115网盘Plus",
-    "version": "1.0.8",
+    "version": "1.0.5",
     "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
     "author": "beatter789",
     "system_version": ">=2.15.2",
     "level": 1,
     "history": {
+      "v1.0.5": "恢复传统VForm配置页面，移除扫码登录和Vue前端。",
       "v1.0.8": "修复Vue组件切换逻辑，恢复配置页面入口和主页面配置按钮。",
       "v1.0.7": "修复Vue主页面账户状态接口422错误，改用GET账户状态接口。",
       "v1.0.6": "移植Vue扫码登录页面，支持二维码显示、自动轮询和Cookie保存，优化账户信息页面。",
-      "v1.0.5": "修复扫码入口调用方式，优化115账户信息逐行显示布局。",
       "v1.0.4": "修复扫码按钮、Cookie输入框和账户状态操作反馈。",
       "v1.0.3": "增加115扫码登录、Cookie检查和账户状态接口，移动缓存清理入口。",
       "v1.0.2": "增加共享请求节流、405熔断、列表并发锁和存储用量缓存。",
       "v1.0.1": "修复上传增强开关和等待重试逻辑，支持 K/M/G/T 大小单位输入。",
       "v1.0.0": "新增115网盘Plus独立存储模块与上传增强。"
+    }
+  },
+  "P115UploadEnhancerVUE": {
+    "name": "115上传增强VUE",
+    "description": "115网盘Plus上传增强的Vue界面版本，提供扫码登录和账户信息展示。",
+    "labels": "云盘,上传,115网盘Plus,VUE",
+    "version": "1.0.0",
+    "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
+    "author": "beatter789",
+    "homepage": "https://github.com/beatter789",
+    "system_version": ">=2.15.2",
+    "level": 1,
+    "history": {
+      "v1.0.0": "从115上传增强Vue版本独立拆分为新插件。"
     }
   }
 }

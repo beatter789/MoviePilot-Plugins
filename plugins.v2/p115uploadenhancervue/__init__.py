@@ -14,13 +14,13 @@ from .request_guard import P115RequestGuard
 from .p115_client import create_client, build_timeout_config
 
 
-class P115UploadEnhancer(_PluginBase):
+class P115UploadEnhancerVUE(_PluginBase):
     """
     115 网盘储存插件：更快更强的 115 网盘存储模块，支持文件列表、上传下载、快照等功能
     """
 
     # 插件名称
-    plugin_name = "115上传增强"
+    plugin_name = "115上传增强VUE"
     # 插件描述
     plugin_desc = "提供115网盘Plus存储模块并增强上传、秒传等待和失败处理。"
     # 插件图标
@@ -29,13 +29,13 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.0.5"
+    plugin_version = "1.0.0"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
     author_url = "https://github.com/beatter789"
     # 插件配置项ID前缀
-    plugin_config_prefix = "p115uploadenhancer_"
+    plugin_config_prefix = "p115uploadenhancervue_"
     # 加载顺序
     plugin_order = 99
     # 可使用的用户级别
@@ -174,6 +174,22 @@ class P115UploadEnhancer(_PluginBase):
                 "summary": "刷新115账户状态",
                 "description": "强制刷新115账户和空间信息",
             },
+            {
+                "path": "/get_qrcode",
+                "endpoint": self.get_qrcode,
+                "auth": "bear",
+                "methods": ["GET"],
+                "summary": "获取115登录二维码",
+                "description": "获取115扫码登录二维码",
+            },
+            {
+                "path": "/check_qrcode",
+                "endpoint": self.check_qrcode,
+                "auth": "bear",
+                "methods": ["GET"],
+                "summary": "检查115二维码",
+                "description": "检查115扫码登录状态",
+            },
         ]
 
     def account_status(self) -> Dict[str, Any]:
@@ -219,13 +235,69 @@ class P115UploadEnhancer(_PluginBase):
         )
         return result
 
+    def get_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        获取115扫码登录二维码
+
+        :return Dict: 二维码数据
+        """
+        logger.info("【115上传增强】用户请求获取115扫码二维码")
+        if not self._account_service:
+            logger.error("【115上传增强】获取二维码失败：账户服务未初始化")
+            return {"code": 1, "success": False, "msg": "客户端尚未初始化"}
+        try:
+            return self._account_service.get_qrcode()
+        except Exception as error:
+            logger.error(f"【115上传增强】获取扫码二维码失败: {error}", exc_info=True)
+            return {"success": False, "msg": str(error)}
+
+    def check_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        检查115扫码登录状态并保存 Cookie
+
+        :param kwargs (Dict): 二维码参数
+        :return Dict: 二维码状态
+        """
+        if not self._account_service:
+            return {"status": "error", "msg": "客户端尚未初始化"}
+        uid = str(kwargs.get("uid", ""))
+        login_time = str(kwargs.get("time", ""))
+        sign = str(kwargs.get("sign", ""))
+        client_type = str(kwargs.get("client_type", "alipaymini"))
+        try:
+            result = self._account_service.check_qrcode(
+                uid, login_time, sign, client_type
+            )
+            cookie = result.get("cookie")
+            if result.get("status") == "success" and cookie:
+                config = dict(self._config)
+                config["cookie"] = cookie
+                self.update_config(config)
+                self._config = config
+                self._cookie = cookie
+                self.init_plugin(config)
+                self._account_service.clear_status_cache()
+            return result
+        except Exception as error:
+            logger.error(f"【115上传增强】检查扫码状态失败: {error}", exc_info=True)
+            return {"status": "error", "msg": str(error)}
+
+    @staticmethod
+    def get_render_mode() -> Tuple[str, Optional[str]]:
+        """
+        返回插件前端渲染模式
+
+        :return Tuple: Vue 渲染模式和前端资源目录
+        """
+        return "vue", "dist/assets"
+
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
         返回 Vue 配置页面的初始配置
 
         :return Tuple: Vue 页面不使用 VForm，返回空页面和默认配置
         """
-        return self.get_legacy_form()
+        return None, self.get_legacy_form()[1]
 
     def get_legacy_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
@@ -497,12 +569,17 @@ class P115UploadEnhancer(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12, "md": 4},
-                                "content": [{"component": "VBtn", "props": {"color": "secondary", "variant": "outlined", "prepend-icon": "mdi-account-check", "block": True}, "text": "检查 Cookie", "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}}}],
+                                "content": [{"component": "VBtn", "props": {"color": "primary", "variant": "elevated", "prepend-icon": "mdi-qrcode", "block": True}, "text": "获取扫码二维码", "events": {"click": {"api": "plugin/P115UploadEnhancerVUE/get_qrcode", "method": "post"}}}],
                             },
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12, "md": 4},
-                                "content": [{"component": "VBtn", "props": {"color": "warning", "variant": "outlined", "prepend-icon": "mdi-delete-sweep", "block": True}, "text": "清理缓存", "events": {"click": {"api": "plugin/P115UploadEnhancer/clear_cache", "method": "post"}}}],
+                                "content": [{"component": "VBtn", "props": {"color": "secondary", "variant": "outlined", "prepend-icon": "mdi-account-check", "block": True}, "text": "检查 Cookie", "events": {"click": {"api": "plugin/P115UploadEnhancerVUE/refresh_account_status", "method": "post"}}}],
+                            },
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [{"component": "VBtn", "props": {"color": "warning", "variant": "outlined", "prepend-icon": "mdi-delete-sweep", "block": True}, "text": "清理缓存", "events": {"click": {"api": "plugin/P115UploadEnhancerVUE/clear_cache", "method": "post"}}}],
                             },
                         ],
                     },
@@ -512,7 +589,7 @@ class P115UploadEnhancer(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12},
-                                "content": [{"component": "VAlert", "props": {"type": "info", "variant": "tonal", "density": "compact"}, "text": "可在这里检查账户状态或清理本地路径缓存。清理缓存不会删除网盘文件，也不会清除 Cookie。"}],
+                                "content": [{"component": "VAlert", "props": {"type": "info", "variant": "tonal", "density": "compact"}, "text": "可在这里扫码获取 Cookie、检查账户状态或清理本地路径缓存。清理缓存不会删除网盘文件，也不会清除 Cookie。"}],
                             },
                         ],
                     },
@@ -608,7 +685,7 @@ class P115UploadEnhancer(_PluginBase):
                 "component": "VBtn",
                 "props": {"color": "primary", "prepend-icon": "mdi-account-check", "class": "mt-3"},
                 "text": "刷新账户信息",
-                "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}},
+                "events": {"click": {"api": "plugin/P115UploadEnhancerVUE/refresh_account_status", "method": "post"}},
             }
         )
         return [

@@ -1,6 +1,9 @@
+from base64 import b64encode
+from io import BytesIO
 from typing import Any, Dict, Optional
 
-from p115client import check_response
+from p115client import P115Client, check_response
+from qrcode import make as qr_make
 
 try:
     from .request_guard import P115RequestGuard, is_method_not_allowed
@@ -95,3 +98,84 @@ class P115AccountService:
             self._status_cache_time = monotonic()
             self._status_cache_ttl = 3600.0 if result.get("success") else 300.0
             return result
+
+    def get_qrcode(self) -> Dict[str, Any]:
+        """
+        获取 115 登录二维码
+
+        :return Dict: 二维码参数和图片
+        """
+        self.guard.before_request()
+        try:
+            response = P115Client.login_qrcode_token()
+            check_response(response)
+        except Exception as error:
+            if is_method_not_allowed(error):
+                self.guard.record_method_not_allowed()
+            raise
+        data = response.get("data") or {}
+        uid = str(data.get("uid", ""))
+        login_time = str(data.get("time", ""))
+        sign = str(data.get("sign", ""))
+        if not uid or not login_time or not sign:
+            raise RuntimeError("二维码参数不完整")
+        content = str(data.get("qrcode") or f"https://115.com/scan/dg-{uid}")
+        image = qr_make(content)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        return {
+            "uid": uid,
+            "time": login_time,
+            "sign": sign,
+            "client_type": "alipaymini",
+            "qrcode": "data:image/png;base64," + b64encode(buffer.getvalue()).decode(),
+            "msg": "请使用115客户端扫描二维码登录",
+        }
+
+    def check_qrcode(
+        self, uid: str, login_time: str, sign: str, client_type: str = "alipaymini"
+    ) -> Dict[str, Any]:
+        """
+        检查二维码状态并获取登录 Cookie
+
+        :param uid (str): 二维码用户 ID
+        :param login_time (str): 二维码时间参数
+        :param sign (str): 二维码签名
+        :param client_type (str): 登录客户端类型
+        :return Dict: 二维码状态，成功时包含 Cookie
+        """
+        self.guard.before_request()
+        try:
+            response = P115Client.login_qrcode_scan_status(
+                {"uid": uid, "time": login_time, "sign": sign}
+            )
+            check_response(response)
+        except Exception as error:
+            if is_method_not_allowed(error):
+                self.guard.record_method_not_allowed()
+            raise
+        status = (response.get("data") or {}).get("status")
+        if status == 0 or status is None:
+            return {"status": "waiting", "msg": "等待扫码"}
+        if status == 1:
+            return {"status": "scanned", "msg": "已扫码，等待确认"}
+        if status == -1 or status == -2:
+            return {"status": "expired", "msg": "二维码已过期或用户取消登录"}
+        if status != 2:
+            return {"status": "error", "msg": f"未知二维码状态：{status}"}
+        self.guard.before_request()
+        try:
+            result = P115Client.login_qrcode_scan_result(uid, app=client_type)
+            check_response(result)
+        except Exception as error:
+            if is_method_not_allowed(error):
+                self.guard.record_method_not_allowed()
+            raise
+        cookie_data = result.get("data", {}).get("cookie", {})
+        cookie = "; ".join(
+            f"{name}={value}" for name, value in cookie_data.items() if name and value
+        )
+        if not cookie:
+            return {"status": "error", "msg": "登录成功但未能解析 Cookie"}
+        self.clear_status_cache()
+        return {"status": "success", "msg": "登录成功", "cookie": cookie}

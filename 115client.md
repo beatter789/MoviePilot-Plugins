@@ -427,6 +427,19 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - `package.v2.json` 已同步新增 `v1.0.8` history
 - Vue 前端已重新构建，Python 编译和 JSON 校验通过
 
+### 2026-08-25：传统版恢复1.0.5并拆分Vue版
+
+- `P115UploadEnhancer` 恢复为传统 VForm 版本 `1.0.5`
+- 传统版移除 Vue 渲染模式、Vue `dist` 构建产物、扫码 API、二维码按钮和二维码服务代码
+- 传统版保留 115网盘Plus 存储、上传增强、Cookie 检查、账户状态和配置页缓存清理
+- 新增独立插件 `P115UploadEnhancerVUE`，目录为 `plugins.v2/p115uploadenhancervue`
+- Vue 版初始版本为 `1.0.0`，配置前缀与传统版隔离
+- Vue 版接口路径使用 `plugin/P115UploadEnhancerVUE/...`
+- Vue 版已复制前端源码并成功构建 `dist/assets`
+- Vue 组件加载错误记录在 `115clientVUE.md`，本轮不处理
+- `package.v2.json` 已同步两个插件的版本和 history
+- 传统版不支持 native `u115` 或 CloudDrive2
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
