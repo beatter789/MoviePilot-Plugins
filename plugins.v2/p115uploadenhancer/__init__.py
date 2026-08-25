@@ -198,13 +198,24 @@ class P115UploadEnhancer(_PluginBase):
 
         :return Dict: 账户状态
         """
-        if not self._account_service:
+        logger.info("【115上传增强】开始检查115 Cookie和账户状态")
+        if not self._account_service or not self._cookie:
+            logger.warning("【115上传增强】未配置115 Cookie")
             return {
+                "code": 1,
                 "success": False,
                 "cookie_valid": False,
                 "error_message": "请在配置页面中设置有效的115网盘Cookie",
+                "msg": "请在配置页面中设置有效的115网盘Cookie",
             }
-        return self._account_service.get_status()
+        result = self._account_service.get_status()
+        result["code"] = 0 if result.get("success") else 1
+        result["msg"] = result.get("error_message") or "115账户信息获取成功"
+        logger.info(
+            "【115上传增强】115账户状态检查完成：%s",
+            "有效" if result.get("success") else "无效",
+        )
+        return result
 
     def refresh_account_status(self, **kwargs: Any) -> Dict[str, Any]:
         """
@@ -212,9 +223,17 @@ class P115UploadEnhancer(_PluginBase):
 
         :return Dict: 账户状态
         """
-        if not self._account_service:
+        logger.info("【115上传增强】用户请求刷新115账户信息")
+        if not self._account_service or not self._cookie:
             return self.account_status()
-        return self._account_service.get_status(force=True)
+        result = self._account_service.get_status(force=True)
+        result["code"] = 0 if result.get("success") else 1
+        result["msg"] = result.get("error_message") or "115账户信息刷新成功"
+        logger.info(
+            "【115上传增强】115账户信息刷新完成：%s",
+            "成功" if result.get("success") else "失败",
+        )
+        return result
 
     def get_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
         """
@@ -222,8 +241,10 @@ class P115UploadEnhancer(_PluginBase):
 
         :return Dict: 二维码数据
         """
+        logger.info("【115上传增强】用户请求获取115扫码二维码")
         if not self._account_service:
-            return {"success": False, "msg": "客户端尚未初始化"}
+            logger.error("【115上传增强】获取二维码失败：账户服务未初始化")
+            return {"code": 1, "success": False, "msg": "客户端尚未初始化"}
         try:
             return self._account_service.get_qrcode()
         except Exception as error:
@@ -296,6 +317,8 @@ class P115UploadEnhancer(_PluginBase):
                                         "props": {
                                             "model": "cookie",
                                             "label": "115 Cookie",
+                                             "variant": "outlined",
+                                             "density": "comfortable",
                                             "hint": "Cookie 可以复用 115 网盘 STRM 助手的配置",
                                             "persistent-hint": True,
                                         },
