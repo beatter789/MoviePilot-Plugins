@@ -352,6 +352,16 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - 上传策略、请求保护、账户状态和二维码状态共 9 项 Mock 测试通过
 - 测试没有输出 Cookie 或完整登录响应
 
+### 2026-08-24：版本规则确认
+
+- 用户明确要求：每次修复、功能增加或版本升级，都必须同步更新 `package.v2.json`
+- 每次变更版本号递增 `0.0.1`
+- 本轮已将插件代码版本从 `1.0.2` 同步升级为 `1.0.4`
+- `package.v2.json` 的 `P115UploadEnhancer.version` 已同步为 `1.0.4`
+- 已新增 `v1.0.4` 历史记录
+- 已完成 Python 编译、JSON 校验和代码版本/清单版本一致性检查
+- 已提交：`28ce6b9 chore(p115uploadenhancer): bump version to 1.0.4`
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
