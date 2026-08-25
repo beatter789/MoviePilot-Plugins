@@ -390,6 +390,22 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - 前端依赖安装和 `npm run build` 通过
 - Python 编译、JSON 校验和元数据检查通过
 
+### 2026-08-24：v1.0.6 Vue前端直接移植
+
+- 已确认 `frontend/p115strmhelper/src/App.vue` 为 Vue 3 单文件组件
+- 已确认扫码功能由 `useQrCode.js`、`QrCodeDialog.vue`、`Config.vue` 配合实现
+- 新增 `frontend/p115uploadenhancer/` 独立 Vue 工程
+- 移植并改造账户页、配置页、扫码弹窗和二维码自动轮询
+- 插件增加 `get_render_mode()`，使用 `vue, dist/assets`
+- 配置页支持显示二维码、3秒轮询、扫码成功保存 Cookie、检查 Cookie、清理缓存和保存上传配置
+- 主页面按行显示 Cookie、用户名、VIP、VIP到期、空间信息
+- 已安装前端依赖并执行 `npm run build` 成功
+- 构建产物已复制并强制纳入 `plugins.v2/p115uploadenhancer/dist/`
+- 版本已升级为 `1.0.6`
+- `package.v2.json` 已同步版本和 `v1.0.6` history
+- Python 编译、JSON 校验和原有 9 项 Mock 测试通过
+- 目标 Git 工作树最新提交：`f7c119d build(p115uploadenhancer): include Vue assets in plugin package`
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。
