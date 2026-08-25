@@ -406,6 +406,16 @@ CloudDrive2 Direct Write 模式不做预先 SHA1 秒传判断。
 - Python 编译、JSON 校验和原有 9 项 Mock 测试通过
 - 目标 Git 工作树最新提交：`f7c119d build(p115uploadenhancer): include Vue assets in plugin package`
 
+### 2026-08-25：v1.0.7 修复主页面 422
+
+- 主页面原先调用 `refresh_account_status` POST，宿主将空请求体校验为 422
+- 主页面已改为调用无参数的 `account_status` GET 接口
+- `account_status` 和 `refresh_account_status` 后端方法已移除不必要的 `**kwargs` 参数
+- Vue 前端已重新构建，构建产物已复制到插件 `dist/`
+- 版本升级为 `1.0.7`
+- `package.v2.json` 已新增 `v1.0.7` history 并同步版本
+- Python 编译和 JSON 校验通过
+
 ### 安全说明
 
 本文件不得记录 Cookie、Token、密码、Machine ID 或其他账号秘密。

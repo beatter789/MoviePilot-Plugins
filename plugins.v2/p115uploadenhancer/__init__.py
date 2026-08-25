@@ -29,7 +29,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.0.6"
+    plugin_version = "1.0.7"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -192,7 +192,7 @@ class P115UploadEnhancer(_PluginBase):
             },
         ]
 
-    def account_status(self, **kwargs: Any) -> Dict[str, Any]:
+    def account_status(self) -> Dict[str, Any]:
         """
         获取 Cookie 有效性、115账户信息和空间信息
 
@@ -217,7 +217,7 @@ class P115UploadEnhancer(_PluginBase):
         )
         return result
 
-    def refresh_account_status(self, **kwargs: Any) -> Dict[str, Any]:
+    def refresh_account_status(self) -> Dict[str, Any]:
         """
         强制刷新 Cookie、账户信息和空间信息
 
