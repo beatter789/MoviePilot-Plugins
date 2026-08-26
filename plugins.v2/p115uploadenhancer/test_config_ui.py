@@ -41,6 +41,34 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn('"type": "cookie_check_status_type"', self.source)
         self.assertIn('"cookie_check_status": "尚未检查 Cookie"', self.source)
 
+    def test_account_page_uses_eight_responsive_cards(self) -> None:
+        """账户主页必须保留八张响应式卡片及统一的 VCard 结构。"""
+        for label in (
+            "115账户信息",
+            "Cookie",
+            "用户名",
+            "VIP",
+            "VIP到期",
+            "总空间",
+            "已用空间",
+            "剩余空间",
+        ):
+            self.assertIn(f'"{label}"', self.source)
+        self.assertIn("def _build_account_card", self.source)
+        self.assertIn('"component": "VCard"', self.source)
+        self.assertIn('"component": "VCardText"', self.source)
+        self.assertIn('"variant": "tonal"', self.source)
+        self.assertIn('"color": color', self.source)
+        self.assertIn('"props": {"cols": 12, "sm": 6, "md": 3}', self.source)
+        self.assertIn('account_text, cookie_text = "账户状态正常", "有效"', self.source)
+        self.assertIn('account_text, cookie_text = "账户状态异常", "无效"', self.source)
+
+    def test_account_page_keeps_refresh_endpoint_and_safe_failure_notice(self) -> None:
+        """刷新按钮和失败提示必须存在，且提示不包含敏感字段。"""
+        self.assertIn("plugin/P115UploadEnhancer/refresh_account_status", self.source)
+        self.assertIn("账户信息获取失败，请检查 Cookie 配置后重试。", self.source)
+        self.assertNotIn('"detail"', self.source[self.source.index("def get_page"):])
+
 
 if __name__ == "__main__":
     unittest.main()

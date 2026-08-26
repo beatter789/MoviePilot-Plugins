@@ -58,7 +58,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.2"
+    plugin_version = "1.1.3"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -605,97 +605,151 @@ class P115UploadEnhancer(_PluginBase):
             "timeout_slow_write": 300,
         }
 
-    def get_page(self) -> List[dict]:
-        """
-        获取插件主页面
-
-        :return List: 插件数据页面配置列表
-        """
-        status = self.account_status()
-        if status.get("success"):
-            user_info = status.get("user_info") or {}
-            storage_info = status.get("storage_info") or {}
-            status_text = (
-                f"Cookie：有效\n"
-                f"用户名：{user_info.get('name') or '未知'}\n"
-                f"VIP：{'永久' if user_info.get('is_forever_vip') else '是' if user_info.get('is_vip') else '否'}\n"
-                f"VIP到期：{user_info.get('vip_expire_date') or '无'}\n"
-                f"总空间：{storage_info.get('total') or '未知'}\n"
-                f"已用空间：{storage_info.get('used') or '未知'}\n"
-                f"剩余空间：{storage_info.get('remaining') or '未知'}"
-            )
-            alert_type = "success"
-        else:
-            status_text = status.get(
-                "error_message", "请在配置页面中设置有效的115网盘Cookie"
-            )
-            alert_type = "warning"
-        rows = []
-        if status.get("success"):
-            user_info = status.get("user_info") or {}
-            storage_info = status.get("storage_info") or {}
-            rows = [
-                ("Cookie", "有效"),
-                ("用户名", user_info.get("name") or "未知"),
-                (
-                    "VIP",
-                    "永久" if user_info.get("is_forever_vip") else "是" if user_info.get("is_vip") else "否",
-                ),
-                ("VIP到期", user_info.get("vip_expire_date") or "无"),
-                ("总空间", storage_info.get("total") or "未知"),
-                ("已用空间", storage_info.get("used") or "未知"),
-                ("剩余空间", storage_info.get("remaining") or "未知"),
-            ]
-        else:
-            rows = [("Cookie", status_text)]
-        row_content = []
-        for label, value in rows:
-            row_content.append(
+    @staticmethod
+    def _build_account_card(label: str, value: str, icon: str, color: str) -> dict:
+        """构建账户详情页的单个响应式统计卡片。"""
+        return {
+            "component": "VCol",
+            "props": {"cols": 12, "sm": 6, "md": 3},
+            "content": [
                 {
-                    "component": "VRow",
-                    "props": {"dense": True, "class": "py-1"},
+                    "component": "VCard",
+                    "props": {
+                        "variant": "tonal",
+                        "color": color,
+                        "class": "h-100",
+                    },
                     "content": [
                         {
-                            "component": "VCol",
-                            "props": {"cols": 4, "sm": 3, "class": "text-medium-emphasis"},
-                            "text": label,
-                        },
-                        {
-                            "component": "VCol",
-                            "props": {"cols": 8, "sm": 9},
-                            "text": value,
-                        },
+                            "component": "VCardText",
+                            "props": {"class": "d-flex align-center ga-3"},
+                            "content": [
+                                {
+                                    "component": "div",
+                                    "props": {
+                                        "class": "flex-grow-1",
+                                        "style": "min-width: 0;",
+                                    },
+                                    "content": [
+                                        {
+                                            "component": "div",
+                                            "props": {
+                                                "class": "text-subtitle-2 text-medium-emphasis text-truncate"
+                                            },
+                                            "text": label,
+                                        },
+                                        {
+                                            "component": "div",
+                                            "props": {"class": "text-h6 text-truncate"},
+                                            "text": value,
+                                        },
+                                    ],
+                                },
+                                {
+                                    "component": "VIcon",
+                                    "props": {
+                                        "color": color,
+                                        "size": "28",
+                                        "class": "flex-shrink-0",
+                                    },
+                                    "text": icon,
+                                },
+                            ],
+                        }
                     ],
                 }
-            )
-        row_content.append(
-            {
-                "component": "VBtn",
-                "props": {"color": "primary", "prepend-icon": "mdi-account-check", "class": "mt-3"},
-                "text": "刷新账户信息",
-                "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}},
-            }
+            ],
+        }
+
+    def get_page(self) -> List[dict]:
+        """获取传统版账户详情主页的响应式卡片布局。"""
+        status = self.account_status()
+        success = bool(status.get("success"))
+        user_info = status.get("user_info") if isinstance(status.get("user_info"), dict) else {}
+        storage_info = (
+            status.get("storage_info")
+            if isinstance(status.get("storage_info"), dict)
+            else {}
         )
-        return [
+
+        def display(value: Any, fallback: str = "未知") -> str:
+            return str(value) if value not in (None, "") else fallback
+
+        if success:
+            if user_info.get("is_forever_vip"):
+                vip_text = "永久"
+            elif user_info.get("is_vip"):
+                vip_text = "是"
+            else:
+                vip_text = "否"
+            vip_expire = display(user_info.get("vip_expire_date"), "无")
+            account_text, cookie_text = "账户状态正常", "有效"
+            account_color, cookie_color = "success", "success"
+        else:
+            vip_text, vip_expire = "未知", "—"
+            account_text, cookie_text = "账户状态异常", "无效"
+            account_color, cookie_color = "error", "warning"
+
+        cards = [
+            self._build_account_card(
+                "115账户信息", account_text, "mdi-account-check", account_color
+            ),
+            self._build_account_card("Cookie", cookie_text, "mdi-cookie-check", cookie_color),
+            self._build_account_card(
+                "用户名", display(user_info.get("name")), "mdi-account", "primary"
+            ),
+            self._build_account_card("VIP", vip_text, "mdi-crown", "deep-purple"),
+            self._build_account_card(
+                "VIP到期", vip_expire, "mdi-calendar-clock", "indigo"
+            ),
+            self._build_account_card(
+                "总空间", display(storage_info.get("total")), "mdi-harddisk", "info"
+            ),
+            self._build_account_card(
+                "已用空间", display(storage_info.get("used")), "mdi-database-arrow-up", "orange"
+            ),
+            self._build_account_card(
+                "剩余空间", display(storage_info.get("remaining")), "mdi-database-arrow-down", "teal"
+            ),
+        ]
+
+        page = [
+            {"component": "VRow", "props": {"class": "mb-2"}, "content": cards},
             {
-                "component": "VCard",
-                "props": {"variant": "outlined"},
+                "component": "VRow",
                 "content": [
-                    {"component": "VCardTitle", "text": "115账户信息"},
                     {
-                        "component": "VCardText",
+                        "component": "VCol",
+                        "props": {"cols": 12},
                         "content": [
                             {
-                                "component": "VAlert",
-                                "props": {"type": alert_type, "variant": "tonal"},
-                                "text": status_text if not status.get("success") else "账户状态正常",
-                            },
-                            *row_content,
+                                "component": "VBtn",
+                                "props": {
+                                    "color": "primary",
+                                    "prepend-icon": "mdi-account-sync",
+                                },
+                                "text": "刷新账户信息",
+                                "events": {
+                                    "click": {
+                                        "api": "plugin/P115UploadEnhancer/refresh_account_status",
+                                        "method": "post",
+                                    }
+                                },
+                            }
                         ],
-                    },
+                    }
                 ],
-            }
+            },
         ]
+        if not success:
+            page.append(
+                {
+                    "component": "VAlert",
+                    "props": {"type": "warning", "variant": "tonal", "density": "compact"},
+                    "text": "账户信息获取失败，请检查 Cookie 配置后重试。",
+                }
+            )
+        return page
 
     def get_module(self) -> Dict[str, Any]:
         """
