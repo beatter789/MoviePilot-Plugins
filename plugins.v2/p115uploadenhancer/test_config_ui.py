@@ -41,6 +41,45 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn('"type": "cookie_check_status_type"', self.source)
         self.assertIn('"cookie_check_status": "尚未检查 Cookie"', self.source)
 
+    def test_cookie_status_alert_is_next_to_check_button(self) -> None:
+        """真实 Cookie 状态条应与检查按钮位于同一首行列。"""
+        form_source = self.source[self.source.index("def get_legacy_form") :]
+        first_row = form_source.index('"component": "VRow"')
+        second_row = form_source.index('"component": "VRow"', first_row + 1)
+        action_row = form_source[first_row:second_row]
+        self.assertIn('"text": "检查 Cookie"', action_row)
+        self.assertIn('"text": "cookie_check_status"', action_row)
+        self.assertIn('"type": "cookie_check_status_type"', action_row)
+        self.assertEqual(form_source.count('"text": "cookie_check_status"'), 1)
+
+    def test_dynamic_cookie_button_demo_is_frontend_only(self) -> None:
+        """底部演示按钮只验证模型绑定，不调用任何后端 API。"""
+        handler = next(
+            node.value.value
+            for node in ast.walk(self.tree)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name)
+                and target.id == "_COOKIE_BUTTON_TEST_HANDLER"
+                for target in node.targets
+            )
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        )
+        self.assertIn("setTimeout", handler)
+        self.assertIn("2000", handler)
+        self.assertIn("model.cookie_button_test_text", handler)
+        self.assertIn("model.cookie_button_test_color", handler)
+        self.assertIn("model.cookie_button_test_running", handler)
+        self.assertNotIn("MoviePilotAPI", handler)
+        self.assertIn('"text": "cookie_button_test_text"', self.source)
+        self.assertIn('"color": "cookie_button_test_color"', self.source)
+        self.assertIn('"loading": "cookie_button_test_running"', self.source)
+        self.assertIn('"disabled": "cookie_button_test_running"', self.source)
+        self.assertIn('"cookie_button_test_text": "测试动态 Cookie 按钮"', self.source)
+        self.assertIn('"cookie_button_test_color": "info"', self.source)
+        self.assertIn('"cookie_button_test_running": False', self.source)
+
     def test_config_actions_are_next_to_enable_switch(self) -> None:
         """首个配置行应并列呈现启用开关和两个操作按钮。"""
         form_source = self.source[self.source.index("def get_legacy_form") :]

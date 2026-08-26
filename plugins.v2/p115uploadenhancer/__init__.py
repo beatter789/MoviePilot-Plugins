@@ -43,6 +43,21 @@ _COOKIE_CHECK_HANDLER = """async () => {
 }"""
 
 
+_COOKIE_BUTTON_TEST_HANDLER = """() => {
+    if (model.cookie_button_test_running) {
+        return;
+    }
+    model.cookie_button_test_running = true;
+    model.cookie_button_test_text = "正在检查 Cookie…";
+    model.cookie_button_test_color = "info";
+    setTimeout(() => {
+        model.cookie_button_test_text = "Cookie 有效";
+        model.cookie_button_test_color = "success";
+        model.cookie_button_test_running = false;
+    }, 2000);
+}"""
+
+
 class P115UploadEnhancer(_PluginBase):
     """
     115 网盘储存插件：更快更强的 115 网盘存储模块，支持文件列表、上传下载、快照等功能
@@ -58,7 +73,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.4"
+    plugin_version = "1.1.5"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -300,7 +315,17 @@ class P115UploadEnhancer(_PluginBase):
                                             "onClick": _COOKIE_CHECK_HANDLER,
                                         },
                                         "text": "检查 Cookie",
-                                    }
+                                    },
+                                    {
+                                        "component": "VAlert",
+                                        "props": {
+                                            "type": "cookie_check_status_type",
+                                            "variant": "tonal",
+                                            "density": "compact",
+                                            "class": "mt-2",
+                                            "text": "cookie_check_status",
+                                        },
+                                    },
                                 ],
                             },
                             {
@@ -577,15 +602,6 @@ class P115UploadEnhancer(_PluginBase):
                                     {
                                         "component": "VAlert",
                                         "props": {
-                                            "type": "cookie_check_status_type",
-                                            "variant": "tonal",
-                                            "density": "compact",
-                                            "text": "cookie_check_status",
-                                        },
-                                    },
-                                    {
-                                        "component": "VAlert",
-                                        "props": {
                                             "type": "info",
                                             "variant": "tonal",
                                             "density": "compact",
@@ -596,6 +612,30 @@ class P115UploadEnhancer(_PluginBase):
                             },
                         ],
                     },
+                    {
+                        "component": "VRow",
+                        "content": [
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [
+                                    {
+                                        "component": "VBtn",
+                                        "props": {
+                                            "color": "cookie_button_test_color",
+                                            "variant": "outlined",
+                                            "prepend-icon": "mdi-test-tube",
+                                            "block": True,
+                                            "loading": "cookie_button_test_running",
+                                            "disabled": "cookie_button_test_running",
+                                            "onClick": _COOKIE_BUTTON_TEST_HANDLER,
+                                        },
+                                        "text": "cookie_button_test_text",
+                                    }
+                                ],
+                            }
+                        ],
+                    },
                 ],
             }
         ], {
@@ -604,6 +644,9 @@ class P115UploadEnhancer(_PluginBase):
             "cookie_check_status": "尚未检查 Cookie",
             "cookie_check_status_type": "info",
             "cookie_checking": False,
+            "cookie_button_test_text": "测试动态 Cookie 按钮",
+            "cookie_button_test_color": "info",
+            "cookie_button_test_running": False,
             "upload_module_enhancement": True,
 
             "upload_module_wait_time": 300,
