@@ -58,7 +58,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.3"
+    plugin_version = "1.1.4"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -269,6 +269,7 @@ class P115UploadEnhancer(_PluginBase):
                 "content": [
                     {
                         "component": "VRow",
+                        "props": {"class": "align-center"},
                         "content": [
                             {
                                 "component": "VCol",
@@ -285,21 +286,67 @@ class P115UploadEnhancer(_PluginBase):
                             },
                             {
                                 "component": "VCol",
-                                "props": {"cols": 12, "md": 12},
+                                "props": {"cols": 12, "md": 4},
+                                "content": [
+                                    {
+                                        "component": "VBtn",
+                                        "props": {
+                                            "color": "info",
+                                            "variant": "outlined",
+                                            "prepend-icon": "mdi-account-check",
+                                            "block": True,
+                                            "loading": "cookie_checking",
+                                            "disabled": "cookie_checking",
+                                            "onClick": _COOKIE_CHECK_HANDLER,
+                                        },
+                                        "text": "检查 Cookie",
+                                    }
+                                ],
+                            },
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 4},
+                                "content": [
+                                    {
+                                        "component": "VBtn",
+                                        "props": {
+                                            "color": "warning",
+                                            "variant": "outlined",
+                                            "prepend-icon": "mdi-delete-sweep",
+                                            "block": True,
+                                        },
+                                        "text": "清理缓存",
+                                        "events": {
+                                            "click": {
+                                                "api": "plugin/P115UploadEnhancer/clear_cache",
+                                                "method": "post",
+                                            }
+                                        },
+                                    }
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        "component": "VRow",
+                        "content": [
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12},
                                 "content": [
                                     {
                                         "component": "VTextField",
                                         "props": {
                                             "model": "cookie",
                                             "label": "115 Cookie",
-                                             "variant": "outlined",
-                                             "density": "comfortable",
+                                            "variant": "outlined",
+                                            "density": "comfortable",
                                             "hint": "Cookie 可以复用 115 网盘 STRM 助手的配置",
                                             "persistent-hint": True,
                                         },
                                     }
                                 ],
-                            },
+                            }
                         ],
                     },
                     {
@@ -517,35 +564,6 @@ class P115UploadEnhancer(_PluginBase):
                                         },
                                     }
                                 ],
-                            },
-                        ],
-                    },
-                    {
-                        "component": "VRow",
-                        "content": [
-                            {
-                                "component": "VCol",
-                                "props": {"cols": 12, "md": 4},
-                                "content": [
-                                    {
-                                        "component": "VBtn",
-                                        "props": {
-                                            "color": "secondary",
-                                            "variant": "outlined",
-                                            "prepend-icon": "mdi-account-check",
-                                            "block": True,
-                                            "loading": "cookie_checking",
-                                            "disabled": "cookie_checking",
-                                            "onClick": _COOKIE_CHECK_HANDLER,
-                                        },
-                                        "text": "检查 Cookie",
-                                    }
-                                ],
-                            },
-                            {
-                                "component": "VCol",
-                                "props": {"cols": 12, "md": 4},
-                                "content": [{"component": "VBtn", "props": {"color": "warning", "variant": "outlined", "prepend-icon": "mdi-delete-sweep", "block": True}, "text": "清理缓存", "events": {"click": {"api": "plugin/P115UploadEnhancer/clear_cache", "method": "post"}}}],
                             },
                         ],
                     },

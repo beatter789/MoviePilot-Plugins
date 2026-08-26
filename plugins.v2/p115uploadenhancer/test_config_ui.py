@@ -41,6 +41,26 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn('"type": "cookie_check_status_type"', self.source)
         self.assertIn('"cookie_check_status": "尚未检查 Cookie"', self.source)
 
+    def test_config_actions_are_next_to_enable_switch(self) -> None:
+        """首个配置行应并列呈现启用开关和两个操作按钮。"""
+        form_source = self.source[self.source.index("def get_legacy_form") :]
+        first_row = form_source.index('"component": "VRow"')
+        second_row = form_source.index('"component": "VRow"', first_row + 1)
+        action_row = form_source[first_row:second_row]
+        self.assertIn('"label": "启用插件"', action_row)
+        self.assertIn('"text": "检查 Cookie"', action_row)
+        self.assertIn('"text": "清理缓存"', action_row)
+        self.assertIn('"color": "info"', action_row)
+        self.assertIn('"props": {"cols": 12, "md": 4}', action_row)
+        self.assertNotIn('"color": "secondary"', action_row)
+
+    def test_config_actions_are_not_duplicated(self) -> None:
+        """移动按钮后配置页不应残留第二组按钮。"""
+        form_source = self.source[self.source.index("def get_legacy_form") :]
+        self.assertEqual(form_source.count('"text": "检查 Cookie"'), 1)
+        self.assertEqual(form_source.count('"text": "清理缓存"'), 1)
+        self.assertIn('plugin/P115UploadEnhancer/clear_cache', form_source)
+
     def test_account_page_uses_eight_responsive_cards(self) -> None:
         """账户主页必须保留八张响应式卡片及统一的 VCard 结构。"""
         for label in (
