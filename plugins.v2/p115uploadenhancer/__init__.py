@@ -48,12 +48,13 @@ _COOKIE_BUTTON_TEST_HANDLER = """() => {
         return;
     }
     model.cookie_button_test_running = true;
-    model.cookie_button_test_text = "正在检查 Cookie…";
     model.cookie_button_test_color = "info";
     setTimeout(() => {
-        model.cookie_button_test_text = "Cookie 有效";
         model.cookie_button_test_color = "success";
-        model.cookie_button_test_running = false;
+        setTimeout(() => {
+            model.cookie_button_test_color = "error";
+            model.cookie_button_test_running = false;
+        }, 2000);
     }, 2000);
 }"""
 
@@ -73,7 +74,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.6"
+    plugin_version = "1.1.7"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -634,8 +635,8 @@ class P115UploadEnhancer(_PluginBase):
                                             "loading": "cookie_button_test_running",
                                             "disabled": "cookie_button_test_running",
                                             "onClick": _COOKIE_BUTTON_TEST_HANDLER,
-                                            "text": "cookie_button_test_text",
                                         },
+                                        "text": "检查 COOKIE",
                                     }
                                 ],
                             }
@@ -649,7 +650,6 @@ class P115UploadEnhancer(_PluginBase):
             "cookie_check_status": "尚未检查 Cookie",
             "cookie_check_status_type": "info",
             "cookie_checking": False,
-            "cookie_button_test_text": "测试动态 Cookie 按钮",
             "cookie_button_test_color": "info",
             "cookie_button_test_running": False,
             "upload_module_enhancement": True,

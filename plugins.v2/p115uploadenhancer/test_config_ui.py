@@ -72,26 +72,20 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
             and isinstance(node.value.value, str)
         )
         self.assertIn("setTimeout", handler)
-        self.assertIn("2000", handler)
-        self.assertIn("model.cookie_button_test_text", handler)
+        self.assertEqual(handler.count("2000"), 2)
         self.assertIn("model.cookie_button_test_color", handler)
         self.assertIn("model.cookie_button_test_running", handler)
+        self.assertIn('model.cookie_button_test_color = "info"', handler)
+        self.assertIn('model.cookie_button_test_color = "success"', handler)
+        self.assertIn('model.cookie_button_test_color = "error"', handler)
+        self.assertNotIn("cookie_button_test_text", handler)
         self.assertNotIn("MoviePilotAPI", handler)
-        self.assertIn(
-            '"onClick": _COOKIE_BUTTON_TEST_HANDLER,\n'
-            '                                            "text": "cookie_button_test_text"',
-            self.source,
-        )
-        self.assertNotIn(
-            '"onClick": _COOKIE_BUTTON_TEST_HANDLER,\n'
-            '                                        },\n'
-            '                                        "text": "cookie_button_test_text"',
-            self.source,
-        )
+        self.assertIn('"onClick": _COOKIE_BUTTON_TEST_HANDLER', self.source)
+        self.assertIn('"text": "检查 COOKIE"', self.source)
+        self.assertNotIn("cookie_button_test_text", self.source)
         self.assertIn('"color": "cookie_button_test_color"', self.source)
         self.assertIn('"loading": "cookie_button_test_running"', self.source)
         self.assertIn('"disabled": "cookie_button_test_running"', self.source)
-        self.assertIn('"cookie_button_test_text": "测试动态 Cookie 按钮"', self.source)
         self.assertIn('"cookie_button_test_color": "info"', self.source)
         self.assertIn('"cookie_button_test_running": False', self.source)
 
