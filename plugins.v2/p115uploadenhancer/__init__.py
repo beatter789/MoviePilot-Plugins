@@ -73,7 +73,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.5"
+    plugin_version = "1.1.6"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -288,7 +288,7 @@ class P115UploadEnhancer(_PluginBase):
                         "content": [
                             {
                                 "component": "VCol",
-                                "props": {"cols": 12, "md": 4},
+                                "props": {"cols": 12, "md": 3},
                                 "content": [
                                     {
                                         "component": "VSwitch",
@@ -301,7 +301,7 @@ class P115UploadEnhancer(_PluginBase):
                             },
                             {
                                 "component": "VCol",
-                                "props": {"cols": 12, "md": 4},
+                                "props": {"cols": 12, "md": 3},
                                 "content": [
                                     {
                                         "component": "VBtn",
@@ -316,21 +316,26 @@ class P115UploadEnhancer(_PluginBase):
                                         },
                                         "text": "检查 Cookie",
                                     },
+                                ],
+                            },
+                            {
+                                "component": "VCol",
+                                "props": {"cols": 12, "md": 3},
+                                "content": [
                                     {
                                         "component": "VAlert",
                                         "props": {
                                             "type": "cookie_check_status_type",
                                             "variant": "tonal",
                                             "density": "compact",
-                                            "class": "mt-2",
                                             "text": "cookie_check_status",
                                         },
-                                    },
+                                    }
                                 ],
                             },
                             {
                                 "component": "VCol",
-                                "props": {"cols": 12, "md": 4},
+                                "props": {"cols": 12, "md": 3},
                                 "content": [
                                     {
                                         "component": "VBtn",
@@ -629,8 +634,8 @@ class P115UploadEnhancer(_PluginBase):
                                             "loading": "cookie_button_test_running",
                                             "disabled": "cookie_button_test_running",
                                             "onClick": _COOKIE_BUTTON_TEST_HANDLER,
+                                            "text": "cookie_button_test_text",
                                         },
-                                        "text": "cookie_button_test_text",
                                     }
                                 ],
                             }

@@ -42,7 +42,7 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn('"cookie_check_status": "尚未检查 Cookie"', self.source)
 
     def test_cookie_status_alert_is_next_to_check_button(self) -> None:
-        """真实 Cookie 状态条应与检查按钮位于同一首行列。"""
+        """真实 Cookie 状态条应与检查按钮同属首行的独立列。"""
         form_source = self.source[self.source.index("def get_legacy_form") :]
         first_row = form_source.index('"component": "VRow"')
         second_row = form_source.index('"component": "VRow"', first_row + 1)
@@ -50,6 +50,11 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn('"text": "检查 Cookie"', action_row)
         self.assertIn('"text": "cookie_check_status"', action_row)
         self.assertIn('"type": "cookie_check_status_type"', action_row)
+        self.assertEqual(action_row.count('"component": "VCol"'), 4)
+        self.assertGreaterEqual(action_row.count('"props": {"cols": 12, "md": 3}'), 4)
+        button_end = action_row.index('"text": "检查 Cookie"')
+        status_start = action_row.index('"text": "cookie_check_status"')
+        self.assertIn('"component": "VCol"', action_row[button_end:status_start])
         self.assertEqual(form_source.count('"text": "cookie_check_status"'), 1)
 
     def test_dynamic_cookie_button_demo_is_frontend_only(self) -> None:
@@ -72,7 +77,17 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn("model.cookie_button_test_color", handler)
         self.assertIn("model.cookie_button_test_running", handler)
         self.assertNotIn("MoviePilotAPI", handler)
-        self.assertIn('"text": "cookie_button_test_text"', self.source)
+        self.assertIn(
+            '"onClick": _COOKIE_BUTTON_TEST_HANDLER,\n'
+            '                                            "text": "cookie_button_test_text"',
+            self.source,
+        )
+        self.assertNotIn(
+            '"onClick": _COOKIE_BUTTON_TEST_HANDLER,\n'
+            '                                        },\n'
+            '                                        "text": "cookie_button_test_text"',
+            self.source,
+        )
         self.assertIn('"color": "cookie_button_test_color"', self.source)
         self.assertIn('"loading": "cookie_button_test_running"', self.source)
         self.assertIn('"disabled": "cookie_button_test_running"', self.source)
@@ -90,7 +105,9 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn('"text": "检查 Cookie"', action_row)
         self.assertIn('"text": "清理缓存"', action_row)
         self.assertIn('"color": "info"', action_row)
-        self.assertIn('"props": {"cols": 12, "md": 4}', action_row)
+        self.assertGreaterEqual(
+            action_row.count('"props": {"cols": 12, "md": 3}'), 4
+        )
         self.assertNotIn('"color": "secondary"', action_row)
 
     def test_config_actions_are_not_duplicated(self) -> None:
