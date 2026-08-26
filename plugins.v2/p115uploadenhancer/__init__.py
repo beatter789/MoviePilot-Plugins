@@ -14,6 +14,35 @@ from .request_guard import P115RequestGuard
 from .p115_client import create_client, build_timeout_config
 
 
+_COOKIE_CHECK_HANDLER = """async () => {
+    model.cookie_check_status = "正在检查 Cookie…";
+    model.cookie_check_status_type = "info";
+    model.cookie_checking = true;
+    try {
+        if (!window.MoviePilotAPI) {
+            throw new Error("MoviePilot API 客户端不可用");
+        }
+        const result = await window.MoviePilotAPI.post(
+            "plugin/P115UploadEnhancer/refresh_account_status"
+        );
+        if (result && result.success) {
+            model.cookie_check_status = "Cookie 有效";
+            model.cookie_check_status_type = "success";
+        } else {
+            model.cookie_check_status =
+                (result && (result.msg || result.error_message)) || "Cookie 无效";
+            model.cookie_check_status_type = "warning";
+        }
+    } catch (error) {
+        console.error("Cookie 检查失败:", error);
+        model.cookie_check_status = "Cookie 检查失败，请稍后重试";
+        model.cookie_check_status_type = "error";
+    } finally {
+        model.cookie_checking = false;
+    }
+}"""
+
+
 class P115UploadEnhancer(_PluginBase):
     """
     115 网盘储存插件：更快更强的 115 网盘存储模块，支持文件列表、上传下载、快照等功能
@@ -29,7 +58,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.1"
+    plugin_version = "1.1.2"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -497,7 +526,21 @@ class P115UploadEnhancer(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12, "md": 4},
-                                "content": [{"component": "VBtn", "props": {"color": "secondary", "variant": "outlined", "prepend-icon": "mdi-account-check", "block": True}, "text": "检查 Cookie", "events": {"click": {"api": "plugin/P115UploadEnhancer/refresh_account_status", "method": "post"}}}],
+                                "content": [
+                                    {
+                                        "component": "VBtn",
+                                        "props": {
+                                            "color": "secondary",
+                                            "variant": "outlined",
+                                            "prepend-icon": "mdi-account-check",
+                                            "block": True,
+                                            "loading": "cookie_checking",
+                                            "disabled": "cookie_checking",
+                                            "onClick": _COOKIE_CHECK_HANDLER,
+                                        },
+                                        "text": "检查 Cookie",
+                                    }
+                                ],
                             },
                             {
                                 "component": "VCol",
@@ -512,7 +555,26 @@ class P115UploadEnhancer(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12},
-                                "content": [{"component": "VAlert", "props": {"type": "info", "variant": "tonal", "density": "compact"}, "text": "可在这里检查账户状态或清理本地路径缓存。清理缓存不会删除网盘文件，也不会清除 Cookie。"}],
+                                "content": [
+                                    {
+                                        "component": "VAlert",
+                                        "props": {
+                                            "type": "cookie_check_status_type",
+                                            "variant": "tonal",
+                                            "density": "compact",
+                                            "text": "cookie_check_status",
+                                        },
+                                    },
+                                    {
+                                        "component": "VAlert",
+                                        "props": {
+                                            "type": "info",
+                                            "variant": "tonal",
+                                            "density": "compact",
+                                        },
+                                        "text": "可在这里检查账户状态或清理本地路径缓存。清理缓存不会删除网盘文件，也不会清除 Cookie。",
+                                    },
+                                ],
                             },
                         ],
                     },
@@ -521,6 +583,9 @@ class P115UploadEnhancer(_PluginBase):
         ], {
             "enabled": False,
             "cookie": "",
+            "cookie_check_status": "尚未检查 Cookie",
+            "cookie_check_status_type": "info",
+            "cookie_checking": False,
             "upload_module_enhancement": True,
 
             "upload_module_wait_time": 300,
