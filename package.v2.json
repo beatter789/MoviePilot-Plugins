@@ -3,11 +3,12 @@
     "name": "qb限速",
     "description": "给 qb 下载任务限速",
     "labels": "下载管理",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "icon": "Youtube-dl_A.png",
     "author": "beatter789",
     "level": 2,
     "history": {
+      "v1.0.3": "增加 qBittorrent 排除标签，命中后优先跳过种子级标签限速。",
       "v1.0.2": "修复插件ID、主类名与目录名不一致导致插件市场无法识别的问题。",
       "v1.0.1": "更新插件作者、作者主页和配置项前缀。",
       "v1.0.0": "发布qb限速插件并修复多标签优先级匹配。"

@@ -1,6 +1,6 @@
 import datetime
 import threading
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Tuple, Dict, Any, Optional, Set
 
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -20,7 +20,7 @@ class QbLimit(_PluginBase):
     # 插件图标
     plugin_icon = "Youtube-dl_A.png"
     # 插件版本
-    plugin_version = "1.0.2"
+    plugin_version = "1.0.3"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -51,6 +51,7 @@ class QbLimit(_PluginBase):
     _downloaders = None
     _global_speed = 0
     _tag_map = "标签:限速(KB)"
+    _qb_exclude_tags = ""
 
     def init_plugin(self, config: dict = None):
         self.downloader_helper = DownloaderHelper()
@@ -67,6 +68,7 @@ class QbLimit(_PluginBase):
             self._downloaders = config.get("downloaders")
             self._global_speed = self.str_to_number(config.get("global_speed"), 0)
             self._tag_map = config.get("tag_map") or "标签:限速(KB)"
+            self._qb_exclude_tags = config.get("qb_exclude_tags") or ""
 
         # 停止现有任务
         self.stop_service()
@@ -209,6 +211,7 @@ class QbLimit(_PluginBase):
                     tag_rules.append((_tag, int(speed_text)))
                 except ValueError:
                     logger.warning(f"{self.LOG_TAG}忽略无效标签限速配置: {item}")
+            qb_exclude_tags = self._parse_qb_exclude_tags(self._qb_exclude_tags)
             # 获取下载器中的种子
             torrents, error = downloader_obj.get_torrents()
             # 如果下载器获取种子发生错误 或 没有种子 则跳过
@@ -216,20 +219,28 @@ class QbLimit(_PluginBase):
                 continue
             logger.info(f"{self.LOG_TAG}下载器 {downloader} 分析种子信息中 ...")
             for torrent in torrents:
-                if service.type == "qbittorrent":
-                    if not self._cover and torrent.up_limit > 0:
-                        continue
                 try:
                     if self._event.is_set():
                         logger.info(f"{self.LOG_TAG}停止服务")
                         return
                     # 获取种子hash
                     hash = self._get_hash(torrent=torrent, dl_type=service.type)
+                    # 获取种子当前标签
+                    torrent_tags = set(self._get_tags(torrent=torrent, dl_type=service.type))
+                    # qBittorrent 排除标签优先级最高，命中后不修改该种子现有的限速。
+                    if service.type == "qbittorrent":
+                        matched_exclude_tags = torrent_tags.intersection(qb_exclude_tags)
+                        if matched_exclude_tags:
+                            logger.info(
+                                f"{self.LOG_TAG}下载器: {service.name} 种子id: {hash} "
+                                f"命中排除标签: {', '.join(sorted(matched_exclude_tags))}，跳过限速"
+                            )
+                            continue
+                        if not self._cover and torrent.up_limit > 0:
+                            continue
                     if service.type == "transmission":
                         if not self._cover and downloader_obj.trc.get_torrent(torrent_id=hash).upload_limited:
                             continue
-                    # 获取种子当前标签
-                    torrent_tags = set(self._get_tags(torrent=torrent, dl_type=service.type))
                     # 按配置规则顺序匹配，而不是按种子标签顺序匹配。
                     # 例如“已整理”配置在“MOVIEPILOT”上方时，
                     # 同时含有两个标签的种子应优先应用“已整理”。
@@ -257,6 +268,13 @@ class QbLimit(_PluginBase):
         except Exception as e:
             print(str(e))
             return []
+
+    @staticmethod
+    def _parse_qb_exclude_tags(value: str) -> Set[str]:
+        """解析 qBittorrent 排除标签：每行一个，忽略空行和首尾空格。"""
+        if not value:
+            return set()
+        return {tag.strip() for tag in value.splitlines() if tag.strip()}
 
     def _set_torrent_speed(self, service: ServiceInfo, _hash: str, _speed: int = None):
         if not service or not service.instance:
@@ -489,6 +507,28 @@ class QbLimit(_PluginBase):
                         ],
                     },
                     {
+                        "component": "VRow",
+                        "content": [
+                            {
+                                "component": "VCol",
+                                "props": {
+                                    "cols": 12
+                                },
+                                "content": [
+                                    {
+                                        "component": "VTextarea",
+                                        "props": {
+                                            "model": "qb_exclude_tags",
+                                            "label": "qBittorrent 排除标签",
+                                            "rows": 3,
+                                            "placeholder": "每行一个标签",
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                    {
                         'component': 'VRow',
                         'content': [
                             {
@@ -502,7 +542,7 @@ class QbLimit(_PluginBase):
                                         'props': {
                                             'type': 'info',
                                             'variant': 'tonal',
-                                            'text': '每行配置一个，越靠上的行优先级越高，0为不限速。注意！！需用英文的:。'
+                                            'text': '标签限速每行配置一个，越靠上的行优先级越高，0为不限速。qBittorrent 排除标签每行一个，命中后优先跳过种子限速。注意！！标签限速需用英文的:。'
                                         }
                                     }
                                 ]
@@ -521,7 +561,8 @@ class QbLimit(_PluginBase):
             "interval_time": "24",
             "interval_unit": "小时",
             "global_speed": "0",
-            "tag_map": "标签:限速(KB)"
+            "tag_map": "标签:限速(KB)",
+            "qb_exclude_tags": ""
         }
 
     def get_page(self) -> List[dict]:
