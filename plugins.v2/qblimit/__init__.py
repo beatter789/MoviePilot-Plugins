@@ -20,7 +20,7 @@ class QbLimit(_PluginBase):
     # 插件图标
     plugin_icon = "Youtube-dl_A.png"
     # 插件版本
-    plugin_version = "1.0.3"
+    plugin_version = "1.0.4"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -282,7 +282,9 @@ class QbLimit(_PluginBase):
         downloader_obj = service.instance
         # 下载器api不通用, 因此需分开处理
         if service.type == "qbittorrent":
-            downloader_obj.qbc.torrents_set_upload_limit(torrent_hashes=_hash,limit=_speed)
+            # qBittorrent 原生接口使用字节/秒，配置界面统一使用 KB/s。
+            qb_speed = _speed * 1024 if _speed is not None else None
+            downloader_obj.qbc.torrents_set_upload_limit(torrent_hashes=_hash, limit=qb_speed)
         else:
             downloader_obj.change_torrent(hash_string=_hash,upload_limit=_speed)
         logger.warn(f"{self.LOG_TAG}下载器: {service.name} 种子id: {_hash}  上传限速为 {_speed}KB/S")

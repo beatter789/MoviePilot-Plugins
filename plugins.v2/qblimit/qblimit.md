@@ -2,8 +2,15 @@
 
 - 插件：`QbLimit`
 - 目录：`plugins.v2\qblimit`
-- 当前版本：`1.0.3`
+- 当前版本：`1.0.4`
 - 作者：beatter789（<https://github.com/beatter789>）
+
+## 限速数值单位
+
+- 配置界面中的“标签:限速(KB)”统一按 KB/s 填写。
+- qBittorrent 会在调用原生接口时自动换算为字节/秒；例如 `已整理:16` 会设置为 `16384` 字节/秒，qB 显示约 `16 KiB/s`。
+- Transmission 继续直接使用填写的 KB/s 数值。
+- 旧配置如果曾为适配 qB 填写 `16000`，修复后请手动改为 `16`；否则会按 `16000 KB/s` 生效。
 
 ## qBittorrent 排除标签
 
