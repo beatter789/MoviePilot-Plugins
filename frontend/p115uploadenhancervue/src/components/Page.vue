@@ -3,7 +3,7 @@
     <v-card variant="outlined">
       <v-card-title class="d-flex align-center"><v-icon icon="mdi-account-box" class="mr-2" />115账户信息</v-card-title>
       <v-card-text>
-        <div class="d-flex justify-end mb-3">
+        <div v-if="show_switch" class="d-flex justify-end mb-3">
           <v-btn variant="outlined" prepend-icon="mdi-cog" @click="openConfig">打开配置</v-btn>
         </div>
         <v-alert v-if="loading" type="info" variant="tonal" density="compact">正在检查账户状态...</v-alert>
@@ -32,9 +32,21 @@
 </template>
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-const props = defineProps({ api: { type: [Object, Function], default: null }, config: { type: Object, default: () => ({}) } })
-const emit = defineEmits(['config'])
-const openConfig = () => emit('config')
+import { normalizeApiResponse, responseMessage } from '../utils/apiResponse.js'
+
+const props = defineProps({
+  api: { type: [Object, Function], default: null },
+  initialConfig: { type: Object, default: () => ({}) },
+  // 快捷入口的只读详情会传 false，避免显示没有宿主监听器的配置按钮。
+  show_switch: { type: Boolean, default: true },
+})
+const show_switch = props.show_switch
+const emit = defineEmits(['switch', 'config'])
+// MoviePilot 新版宿主使用 switch；兼容仍使用 config 事件的旧版宿主。
+const openConfig = () => {
+  emit('switch')
+  emit('config')
+}
 const loading = ref(false)
 const status = ref({ success: false, error_message: '请在配置页面中设置有效的115网盘Cookie' })
 const vipText = computed(() => {
@@ -42,9 +54,37 @@ const vipText = computed(() => {
   return user.is_forever_vip ? '永久VIP' : user.is_vip ? 'VIP' : '非VIP'
 })
 const refresh = async () => {
-  if (!props.api?.post) return
+  if (typeof props.api?.get !== 'function') {
+    status.value = { success: false, error_message: '宿主 API 尚未就绪' }
+    return
+  }
   loading.value = true
-  try { status.value = await props.api.get('plugin/P115UploadEnhancerVUE/account_status') } catch (error) { status.value = { success: false, error_message: error.message } } finally { loading.value = false }
+  try {
+    const normalized = normalizeApiResponse(
+      await props.api.get('plugin/P115UploadEnhancerVUE/account_status'),
+    )
+    const payload = normalized.payload
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      status.value = {
+        ...payload,
+        success: payload.success ?? normalized.success,
+        error_message:
+          payload.error_message ||
+          (!normalized.success ? responseMessage(normalized, '账户状态获取失败') : undefined),
+      }
+    } else {
+      status.value = {
+        success: normalized.success,
+        error_message: normalized.success
+          ? undefined
+          : responseMessage(normalized, '账户状态获取失败'),
+      }
+    }
+  } catch (error) {
+    status.value = { success: false, error_message: error.message || '账户状态获取失败' }
+  } finally {
+    loading.value = false
+  }
 }
 onMounted(refresh)
 </script>

@@ -1,13 +1,13 @@
 <template>
   <v-app>
     <div class="plugin-app">
-      <component :is="currentComponent" :api="api" :config="config" @switch="switchComponent" @config="switchComponent" @save="saveConfig" />
+      <component :is="currentComponent" :api="api" :initial-config="config" @switch="switchComponent" @config="showConfig" @save="saveConfig" />
     </div>
   </v-app>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, reactive, ref, shallowRef } from 'vue'
+import { onMounted, onBeforeUnmount, onErrorCaptured, reactive, ref, shallowRef } from 'vue'
 import Page from './components/Page.vue'
 import Config from './components/Config.vue'
 
@@ -16,6 +16,9 @@ const currentComponent = shallowRef(Page)
 const config = reactive({ enabled: false, cookie: '' })
 const switchComponent = () => {
   currentComponent.value = currentComponent.value === Page ? Config : Page
+}
+const showConfig = () => {
+  currentComponent.value = Config
 }
 
 const handleMessage = (event) => {
@@ -33,6 +36,10 @@ onMounted(() => {
   window.parent?.postMessage({ type: 'ready' }, '*')
 })
 onBeforeUnmount(() => window.removeEventListener('message', handleMessage))
+onErrorCaptured((error, instance, info) => {
+  console.error('[P115UploadEnhancerVUE] 组件运行时异常', { error, instance, info })
+  return true
+})
 </script>
 
 <style>
