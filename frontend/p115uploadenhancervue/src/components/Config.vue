@@ -25,7 +25,15 @@
         <v-btn color="primary" prepend-icon="mdi-content-save" @click="$emit('save', local)">保存配置</v-btn>
       </v-card-text>
     </v-card>
-    <QrCodeDialog v-model="qr.show" :qr="qr" @update:model-value="handleQrModelUpdate" @refresh="getQr" @close="closeQr" />
+    <QrCodeDialog
+      v-model="qr.show"
+      :qr="qr"
+      :client-types="clientTypes"
+      @update:model-value="handleQrModelUpdate"
+      @client-type-change="handleClientTypeChange"
+      @refresh="getQr"
+      @close="closeQr"
+    />
   </div>
 </template>
 
@@ -41,7 +49,16 @@ const props = defineProps({
 const emit = defineEmits(['save'])
 const local = reactive({ enabled: false, cookie: '', upload_module_enhancement: true, upload_module_wait_time: 300, upload_module_wait_timeout: 3600, upload_module_skip_upload_wait_size: '0', upload_module_force_upload_wait_size: '0', upload_module_skip_slow_upload: false, upload_module_skip_slow_upload_size: '0', ...(props.initialConfig || {}) })
 const message = ref(''); const messageType = ref('info')
-const qr = reactive({ show: false, loading: false, error: '', image: '', uid: '', time: '', sign: '', status: '等待扫码', timer: null, checkInFlight: false, generation: 0 })
+const clientTypes = [
+  { label: '支付宝', value: 'alipaymini' },
+  { label: '微信', value: 'wechatmini' },
+  { label: '安卓', value: '115android' },
+  { label: 'iOS', value: '115ios' },
+  { label: '网页', value: 'web' },
+  { label: 'PAD', value: '115ipad' },
+  { label: 'TV', value: 'tv' },
+]
+const qr = reactive({ show: false, loading: false, error: '', image: '', uid: '', time: '', sign: '', tips: '请使用支付宝扫描二维码登录', status: '等待扫码', clientType: 'alipaymini', timer: null, checkInFlight: false, generation: 0 })
 const call = (path, options) => {
   const method = options?.method === 'post' ? 'post' : 'get'
   if (typeof props.api?.[method] !== 'function') throw new Error('宿主 API 尚未就绪')
@@ -55,13 +72,19 @@ const stopQrPolling = () => {
 const openQr = () => { qr.show = true; getQr() }
 const closeQr = () => { stopQrPolling(); qr.generation += 1; qr.show = false }
 const handleQrModelUpdate = (value) => { if (value) qr.show = true; else closeQr() }
+const handleClientTypeChange = (value) => {
+  if (value === qr.clientType || !clientTypes.some((item) => item.value === value)) return
+  qr.clientType = value
+  if (qr.show) getQr()
+}
 const getQr = async () => {
   const generation = qr.generation + 1
   qr.generation = generation
   stopQrPolling()
   Object.assign(qr, { loading: true, error: '', image: '', uid: '', time: '', sign: '', status: '等待扫码' })
   try {
-    const normalized = normalizeApiResponse(await call('plugin/P115UploadEnhancerVUE/get_qrcode'))
+    const query = new URLSearchParams({ client_type: qr.clientType })
+    const normalized = normalizeApiResponse(await call(`plugin/P115UploadEnhancerVUE/get_qrcode?${query}`))
     const data = normalized.payload
     if (!normalized.success) throw new Error(responseMessage(normalized, '获取二维码失败'))
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('二维码响应格式无效')
@@ -69,16 +92,21 @@ const getQr = async () => {
       if (!data[key]) throw new Error('二维码响应缺少必要参数')
     }
     if (generation !== qr.generation || !qr.show) return
-    Object.assign(qr, { image: data.qrcode, uid: data.uid, time: data.time, sign: data.sign, status: '等待扫码' })
+    const responseClientType = clientTypes.some((item) => item.value === data.client_type) ? data.client_type : qr.clientType
+    Object.assign(qr, { image: data.qrcode, uid: data.uid, time: data.time, sign: data.sign, clientType: responseClientType, tips: data.tips || '请扫描二维码登录', status: '等待扫码' })
     qr.timer = setInterval(checkQr, 3000)
-  } catch (error) { qr.error = error.message || '获取二维码失败' } finally { qr.loading = false }
+  } catch (error) {
+    if (generation === qr.generation && qr.show) qr.error = error.message || '获取二维码失败'
+  } finally {
+    if (generation === qr.generation) qr.loading = false
+  }
 }
 const checkQr = async () => {
   if (!qr.uid || !qr.show || qr.checkInFlight) return
   const generation = qr.generation
   qr.checkInFlight = true
   try {
-    const query = new URLSearchParams({ uid: qr.uid, time: qr.time, sign: qr.sign, client_type: 'alipaymini' })
+    const query = new URLSearchParams({ uid: qr.uid, time: qr.time, sign: qr.sign, client_type: qr.clientType })
     const normalized = normalizeApiResponse(await call(`plugin/P115UploadEnhancerVUE/check_qrcode?${query}`))
     if (generation !== qr.generation || !qr.show) return
     if (!normalized.success) throw new Error(responseMessage(normalized, '检查二维码失败'))
@@ -90,7 +118,9 @@ const checkQr = async () => {
     } else if (data.status === 'scanned') qr.status = '已扫码，请确认登录'
     else if (data.status === 'expired' || data.status === 'error') { qr.status = data.msg || '二维码失效'; qr.error = qr.status; stopQrPolling() }
     else if (data.status !== 'waiting') { qr.status = data.msg || '二维码状态未知'; qr.error = qr.status; stopQrPolling() }
-  } catch (error) { qr.error = error.message || '检查二维码失败' }
+  } catch (error) {
+    if (generation === qr.generation && qr.show) qr.error = error.message || '检查二维码失败'
+  }
   finally { if (generation === qr.generation) qr.checkInFlight = false }
 }
 const checkCookie = async () => { message.value = '正在检查 Cookie...'; messageType.value = 'info'; try { const normalized = normalizeApiResponse(await call('plugin/P115UploadEnhancerVUE/refresh_account_status', { method: 'post' })); message.value = responseMessage(normalized, normalized.success ? 'Cookie 有效' : 'Cookie 无效'); messageType.value = normalized.success ? 'success' : 'warning' } catch (e) { message.value = e.message || 'Cookie 检查失败'; messageType.value = 'error' } }

@@ -3,12 +3,31 @@ from io import BytesIO
 from typing import Any, Dict, Optional
 
 from p115client import P115Client, check_response
+from p115client.const import APP_TO_SSOENT
 from qrcode import make as qr_make
 
 try:
     from .request_guard import P115RequestGuard, is_method_not_allowed
 except ImportError:
     from request_guard import P115RequestGuard, is_method_not_allowed
+
+
+DEFAULT_CLIENT_TYPE = "alipaymini"
+CLIENT_TYPE_LABELS = {
+    "alipaymini": "支付宝",
+    "wechatmini": "微信",
+    "115android": "安卓",
+    "115ios": "iOS",
+    "web": "网页",
+    "115ipad": "PAD",
+    "tv": "TV",
+}
+
+
+def normalize_client_type(client_type: str) -> str:
+    """Return a p115client-supported QR login client type."""
+    normalized = str(client_type or "").strip()
+    return normalized if normalized in APP_TO_SSOENT else DEFAULT_CLIENT_TYPE
 
 
 class P115AccountService:
@@ -99,12 +118,14 @@ class P115AccountService:
             self._status_cache_ttl = 3600.0 if result.get("success") else 300.0
             return result
 
-    def get_qrcode(self) -> Dict[str, Any]:
+    def get_qrcode(self, client_type: str = DEFAULT_CLIENT_TYPE) -> Dict[str, Any]:
         """
         获取 115 登录二维码
 
+        :param client_type (str): 登录客户端类型
         :return Dict: 二维码参数和图片
         """
+        client_type = normalize_client_type(client_type)
         self.guard.before_request()
         try:
             response = P115Client.login_qrcode_token()
@@ -127,13 +148,18 @@ class P115AccountService:
             "uid": uid,
             "time": login_time,
             "sign": sign,
-            "client_type": "alipaymini",
+            "client_type": client_type,
             "qrcode": "data:image/png;base64," + b64encode(buffer.getvalue()).decode(),
-            "msg": "请使用115客户端扫描二维码登录",
+            "tips": f"请使用{CLIENT_TYPE_LABELS.get(client_type, '115客户端')}扫描二维码登录",
+            "msg": "二维码获取成功",
         }
 
     def check_qrcode(
-        self, uid: str, login_time: str, sign: str, client_type: str = "alipaymini"
+        self,
+        uid: str,
+        login_time: str,
+        sign: str,
+        client_type: str = DEFAULT_CLIENT_TYPE,
     ) -> Dict[str, Any]:
         """
         检查二维码状态并获取登录 Cookie
@@ -144,6 +170,7 @@ class P115AccountService:
         :param client_type (str): 登录客户端类型
         :return Dict: 二维码状态，成功时包含 Cookie
         """
+        client_type = normalize_client_type(client_type)
         self.guard.before_request()
         try:
             response = P115Client.login_qrcode_scan_status(

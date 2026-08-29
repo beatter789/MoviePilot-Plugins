@@ -10,11 +10,23 @@ p115client_stub.P115Client = MagicMock()
 p115client_stub.check_response = lambda response: response
 sys.modules.setdefault("p115client", p115client_stub)
 
+p115client_const_stub = types.ModuleType("p115client.const")
+p115client_const_stub.APP_TO_SSOENT = {
+    "alipaymini": "",
+    "wechatmini": "",
+    "115android": "",
+    "115ios": "",
+    "web": "",
+    "115ipad": "",
+    "tv": "",
+}
+sys.modules.setdefault("p115client.const", p115client_const_stub)
+
 qrcode_stub = types.ModuleType("qrcode")
 qrcode_stub.make = lambda content: MagicMock()
 sys.modules.setdefault("qrcode", qrcode_stub)
 
-from account import P115AccountService
+from account import P115AccountService, normalize_client_type
 from request_guard import P115RequestGuard
 
 
@@ -71,13 +83,60 @@ class AccountServiceTest(unittest.TestCase):
 
     def test_qrcode_status_mapping(self) -> None:
         """
-        测试二维码等待状态映射
+        测试二维码非成功状态映射
         """
         service = P115AccountService(None, P115RequestGuard(interval=0))
         with patch("account.P115Client.login_qrcode_scan_status") as status_call:
-            status_call.return_value = {"state": True, "data": {"status": 0}}
-            result = service.check_qrcode("uid", "time", "sign")
-        self.assertEqual(result["status"], "waiting")
+            for source_status, expected_status in (
+                (0, "waiting"),
+                (1, "scanned"),
+                (-1, "expired"),
+                (-2, "expired"),
+                (99, "error"),
+            ):
+                with self.subTest(source_status=source_status):
+                    status_call.return_value = {
+                        "state": True,
+                        "data": {"status": source_status},
+                    }
+                    result = service.check_qrcode("uid", "time", "sign")
+                    self.assertEqual(result["status"], expected_status)
+
+    def test_qrcode_client_type_normalization(self) -> None:
+        """测试支持的客户端类型和无效值回退。"""
+        self.assertEqual(normalize_client_type("wechatmini"), "wechatmini")
+        self.assertEqual(normalize_client_type("unsupported"), "alipaymini")
+
+    def test_get_qrcode_returns_selected_client_type(self) -> None:
+        """测试二维码响应回显经过校验的客户端类型。"""
+        service = P115AccountService(None, P115RequestGuard(interval=0))
+        with patch("account.P115Client.login_qrcode_token") as token_call:
+            token_call.return_value = {
+                "state": True,
+                "data": {"uid": "uid", "time": "time", "sign": "sign"},
+            }
+            result = service.get_qrcode("wechatmini")
+
+        self.assertEqual(result["client_type"], "wechatmini")
+        self.assertIn("微信", result["tips"])
+
+    def test_qrcode_result_uses_normalized_client_type(self) -> None:
+        """测试获取登录结果时使用经过校验的客户端类型。"""
+        service = P115AccountService(None, P115RequestGuard(interval=0))
+        with (
+            patch("account.P115Client.login_qrcode_scan_status") as status_call,
+            patch("account.P115Client.login_qrcode_scan_result") as result_call,
+        ):
+            status_call.return_value = {"state": True, "data": {"status": 2}}
+            result_call.return_value = {
+                "state": True,
+                "data": {"cookie": {"UID": "uid-value", "CID": "cid-value"}},
+            }
+            result = service.check_qrcode("uid", "time", "sign", "unsupported")
+
+        result_call.assert_called_once_with("uid", app="alipaymini")
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["cookie"], "UID=uid-value; CID=cid-value")
 
 
 if __name__ == "__main__":

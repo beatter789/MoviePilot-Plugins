@@ -4,7 +4,7 @@
 
 - 插件：`P115UploadEnhancerVUE`
 - 目录：`plugins.v2/p115uploadenhancervue`
-- 当前代码版本：`1.1.2`
+- 当前代码版本：`1.1.3`
 - 前端目录：`frontend/p115uploadenhancervue`
 - 接口前缀：`plugin/P115UploadEnhancerVUE/...`
 - 本插件与传统 `P115UploadEnhancer` 独立部署；传统版记录见 `115client.md`。
@@ -15,6 +15,7 @@
 - `v1.1.0`：与传统版统一版本基线；Vue 代码和构建产物保持独立。
 - `v1.1.1`：修复 MoviePilot Vue 宿主组件 prop/event 协议、V3 API 响应解析、二维码失败校验和轮询生命周期清理。
 - `v1.1.2`：配置按钮同时兼容宿主 `switch` 与旧版 `config` 事件；快捷入口只读详情不再显示没有宿主监听器的配置按钮。
+- `v1.1.3`：修复扫码接口因可变参数签名触发的 422 校验错误，并补齐多客户端扫码方式选择。
 - Vue 页面包含账户信息、配置页面、二维码弹窗、扫码状态轮询、Cookie 保存和账户状态刷新。
 - 构建产物位于插件目录的 `dist/assets`；源码位于 `frontend/p115uploadenhancervue`。
 

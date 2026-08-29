@@ -29,7 +29,7 @@ class P115UploadEnhancerVUE(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.2"
+    plugin_version = "1.1.3"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -235,10 +235,11 @@ class P115UploadEnhancerVUE(_PluginBase):
         )
         return result
 
-    def get_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_qrcode(self, client_type: str = "alipaymini") -> Dict[str, Any]:
         """
         获取115扫码登录二维码
 
+        :param client_type (str): 登录客户端类型
         :return Dict: 二维码数据
         """
         logger.info("【115上传增强】用户请求获取115扫码二维码")
@@ -246,27 +247,32 @@ class P115UploadEnhancerVUE(_PluginBase):
             logger.error("【115上传增强】获取二维码失败：账户服务未初始化")
             return {"code": 1, "success": False, "msg": "客户端尚未初始化"}
         try:
-            return self._account_service.get_qrcode()
+            return self._account_service.get_qrcode(client_type)
         except Exception as error:
             logger.error(f"【115上传增强】获取扫码二维码失败: {error}", exc_info=True)
             return {"success": False, "msg": str(error)}
 
-    def check_qrcode(self, **kwargs: Any) -> Dict[str, Any]:
+    def check_qrcode(
+        self,
+        uid: str,
+        time: str,
+        sign: str,
+        client_type: str = "alipaymini",
+    ) -> Dict[str, Any]:
         """
         检查115扫码登录状态并保存 Cookie
 
-        :param kwargs (Dict): 二维码参数
+        :param uid (str): 二维码用户 ID
+        :param time (str): 二维码时间参数
+        :param sign (str): 二维码签名
+        :param client_type (str): 登录客户端类型
         :return Dict: 二维码状态
         """
         if not self._account_service:
             return {"status": "error", "msg": "客户端尚未初始化"}
-        uid = str(kwargs.get("uid", ""))
-        login_time = str(kwargs.get("time", ""))
-        sign = str(kwargs.get("sign", ""))
-        client_type = str(kwargs.get("client_type", "alipaymini"))
         try:
             result = self._account_service.check_qrcode(
-                uid, login_time, sign, client_type
+                str(uid), str(time), str(sign), str(client_type)
             )
             cookie = result.get("cookie")
             if result.get("status") == "success" and cookie:
@@ -569,7 +575,7 @@ class P115UploadEnhancerVUE(_PluginBase):
                             {
                                 "component": "VCol",
                                 "props": {"cols": 12, "md": 4},
-                                "content": [{"component": "VBtn", "props": {"color": "primary", "variant": "elevated", "prepend-icon": "mdi-qrcode", "block": True}, "text": "获取扫码二维码", "events": {"click": {"api": "plugin/P115UploadEnhancerVUE/get_qrcode", "method": "post"}}}],
+                                "content": [{"component": "VBtn", "props": {"color": "primary", "variant": "elevated", "prepend-icon": "mdi-qrcode", "block": True}, "text": "获取扫码二维码", "events": {"click": {"api": "plugin/P115UploadEnhancerVUE/get_qrcode", "method": "get"}}}],
                             },
                             {
                                 "component": "VCol",
