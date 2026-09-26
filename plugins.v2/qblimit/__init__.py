@@ -20,7 +20,7 @@ class QbLimit(_PluginBase):
     # 插件图标
     plugin_icon = "Youtube-dl_A.png"
     # 插件版本
-    plugin_version = "1.0.4"
+    plugin_version = "1.0.5"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -43,6 +43,7 @@ class QbLimit(_PluginBase):
     _enabled = False
     _onlyonce = False
     _cover = False
+    _smart_cover = False
     _global = False
     _interval = "计划任务"
     _interval_cron = "0 13 * * *"
@@ -60,6 +61,7 @@ class QbLimit(_PluginBase):
             self._enabled = config.get("enabled")
             self._onlyonce = config.get("onlyonce")
             self._cover = config.get("cover")
+            self._smart_cover = config.get("smart_cover", False)
             self._global = config.get("global")
             self._interval = config.get("interval") or "计划任务"
             self._interval_cron = config.get("interval_cron") or "0 13 * * *"
@@ -218,6 +220,7 @@ class QbLimit(_PluginBase):
             if error or not torrents:
                 continue
             logger.info(f"{self.LOG_TAG}下载器 {downloader} 分析种子信息中 ...")
+            smart_changes = {}
             for torrent in torrents:
                 try:
                     if self._event.is_set():
@@ -231,12 +234,13 @@ class QbLimit(_PluginBase):
                     if service.type == "qbittorrent":
                         matched_exclude_tags = torrent_tags.intersection(qb_exclude_tags)
                         if matched_exclude_tags:
-                            logger.info(
-                                f"{self.LOG_TAG}下载器: {service.name} 种子id: {hash} "
-                                f"命中排除标签: {', '.join(sorted(matched_exclude_tags))}，跳过限速"
-                            )
+                            if not self._smart_cover:
+                                logger.info(
+                                    f"{self.LOG_TAG}下载器: {service.name} 种子id: {hash} "
+                                    f"命中排除标签: {', '.join(sorted(matched_exclude_tags))}，跳过限速"
+                                )
                             continue
-                        if not self._cover and torrent.up_limit > 0:
+                        if not self._smart_cover and not self._cover and torrent.up_limit > 0:
                             continue
                     if service.type == "transmission":
                         if not self._cover and downloader_obj.trc.get_torrent(torrent_id=hash).upload_limited:
@@ -246,11 +250,26 @@ class QbLimit(_PluginBase):
                     # 同时含有两个标签的种子应优先应用“已整理”。
                     for tag, speed in tag_rules:
                         if tag in torrent_tags:
-                            self._set_torrent_speed(service=service, _hash=hash, _speed=speed)
+                            if service.type == "qbittorrent" and self._smart_cover:
+                                current_speed = int(getattr(torrent, "up_limit", 0) or 0)
+                                target_speed = speed * 1024
+                                if current_speed != target_speed:
+                                    self._set_torrent_speed(
+                                        service=service, _hash=hash, _speed=speed, _log=False
+                                    )
+                                    smart_changes[tag] = smart_changes.get(tag, 0) + 1
+                            else:
+                                self._set_torrent_speed(service=service, _hash=hash, _speed=speed)
                             break
                 except Exception as e:
                     logger.error(
                         f"{self.LOG_TAG}分析种子信息时发生了错误: {str(e)}")
+            if self._smart_cover and service.type == "qbittorrent":
+                if smart_changes:
+                    summary = "，".join(f"{tag}: {count} 个" for tag, count in smart_changes.items())
+                    logger.info(f"{self.LOG_TAG}下载器 {downloader} 智能覆盖实际修改: {summary}")
+                else:
+                    logger.info(f"{self.LOG_TAG}下载器 {downloader} 智能覆盖无需修改")
         logger.info(f"{self.LOG_TAG}执行完成")
 
     @staticmethod
@@ -276,7 +295,9 @@ class QbLimit(_PluginBase):
             return set()
         return {tag.strip() for tag in value.splitlines() if tag.strip()}
 
-    def _set_torrent_speed(self, service: ServiceInfo, _hash: str, _speed: int = None):
+    def _set_torrent_speed(
+        self, service: ServiceInfo, _hash: str, _speed: int = None, _log: bool = True
+    ):
         if not service or not service.instance:
             return
         downloader_obj = service.instance
@@ -287,7 +308,8 @@ class QbLimit(_PluginBase):
             downloader_obj.qbc.torrents_set_upload_limit(torrent_hashes=_hash, limit=qb_speed)
         else:
             downloader_obj.change_torrent(hash_string=_hash,upload_limit=_speed)
-        logger.warn(f"{self.LOG_TAG}下载器: {service.name} 种子id: {_hash}  上传限速为 {_speed}KB/S")
+        if _log:
+            logger.warn(f"{self.LOG_TAG}下载器: {service.name} 种子id: {_hash}  上传限速为 {_speed}KB/S")
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
         return [
@@ -357,6 +379,26 @@ class QbLimit(_PluginBase):
                                     }
                                 ]
                             },
+                        ]
+                    },
+                    {
+                        'component': 'VRow',
+                        'content': [
+                            {
+                                'component': 'VCol',
+                                'props': {
+                                    'cols': 12
+                                },
+                                'content': [
+                                    {
+                                        'component': 'VSwitch',
+                                        'props': {
+                                            'model': 'smart_cover',
+                                            'label': '智能覆盖（仅 qBittorrent，避免重复设置）',
+                                        }
+                                    }
+                                ]
+                            }
                         ]
                     },
                     {
@@ -557,6 +599,7 @@ class QbLimit(_PluginBase):
             "enabled": False,
             "onlyonce": False,
             "cover": False,
+            "smart_cover": False,
             "global": False,
             "interval": "计划任务",
             "interval_cron": "0 13 * * *",
