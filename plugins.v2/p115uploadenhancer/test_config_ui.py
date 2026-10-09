@@ -139,6 +139,19 @@ class ConfigCookieCheckUiTest(unittest.TestCase):
         self.assertIn("账户信息获取失败，请检查 Cookie 配置后重试。", self.source)
         self.assertNotIn('"detail"', self.source[self.source.index("def get_page"):])
 
+    def test_refresh_endpoint_uses_v3_response_envelope(self) -> None:
+        """账户刷新 API 必须声明并返回 V3 的统一响应结构。"""
+        api_block_start = self.source.index('"path": "/refresh_account_status"')
+        api_block_end = self.source.index('},', api_block_start) + 2
+        api_block = self.source[api_block_start:api_block_end]
+        self.assertIn('"response_model": _ACCOUNT_STATUS_RESPONSE_MODEL', api_block)
+        self.assertIn('def refresh_account_status(self) -> Response:', self.source)
+        refresh_source = self.source[self.source.index('def refresh_account_status'):]
+        self.assertIn('return Response(', refresh_source)
+        self.assertIn('success=bool(result.get("success"))', refresh_source)
+        self.assertIn('message=', refresh_source)
+        self.assertIn('data=result', refresh_source)
+
 
 if __name__ == "__main__":
     unittest.main()

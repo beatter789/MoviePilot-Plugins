@@ -6,12 +6,20 @@ from app.log import logger
 from app.plugins import _PluginBase
 from app.schemas.types import ChainEventType
 from app.helper.storage import StorageHelper
-from app.schemas import StorageOperSelectionEventData, FileItem, StorageUsage
+from app.schemas import Response, StorageOperSelectionEventData, FileItem, StorageUsage
 
 from .account import P115AccountService
 from .p115_api import P115Api
 from .request_guard import P115RequestGuard
 from .p115_client import create_client, build_timeout_config
+
+
+try:
+    _ACCOUNT_STATUS_RESPONSE_MODEL = Response[Dict[str, Any]]
+except TypeError:
+    # MoviePilot V2 exposes a non-generic Response model; keep the same
+    # three-field payload while allowing the legacy host to import the plugin.
+    _ACCOUNT_STATUS_RESPONSE_MODEL = Response
 
 
 _COOKIE_CHECK_HANDLER = """async () => {
@@ -74,7 +82,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.8"
+    plugin_version = "1.1.9"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页
@@ -218,6 +226,7 @@ class P115UploadEnhancer(_PluginBase):
                 "methods": ["POST"],
                 "summary": "刷新115账户状态",
                 "description": "强制刷新115账户和空间信息",
+                "response_model": _ACCOUNT_STATUS_RESPONSE_MODEL,
             },
         ]
 
@@ -246,23 +255,32 @@ class P115UploadEnhancer(_PluginBase):
         )
         return result
 
-    def refresh_account_status(self) -> Dict[str, Any]:
+    def refresh_account_status(self) -> Response:
         """
         强制刷新 Cookie、账户信息和空间信息
 
-        :return Dict: 账户状态
+        :return Response: 使用 V3 统一响应结构返回账户状态
         """
         logger.info("【115上传增强】用户请求刷新115账户信息")
         if not self._account_service or not self._cookie:
-            return self.account_status()
-        result = self._account_service.get_status(force=True)
+            result = self.account_status()
+        else:
+            result = self._account_service.get_status(force=True)
         result["code"] = 0 if result.get("success") else 1
         result["msg"] = result.get("error_message") or "115账户信息刷新成功"
         logger.info(
             "【115上传增强】115账户信息刷新完成：%s",
             "成功" if result.get("success") else "失败",
         )
-        return result
+        return Response(
+            success=bool(result.get("success")),
+            message=(
+                "115账户信息刷新成功"
+                if result.get("success")
+                else result.get("error_message") or "115账户信息刷新失败"
+            ),
+            data=result,
+        )
 
     def get_form(self) -> Tuple[Optional[List[dict]], Dict[str, Any]]:
         """
