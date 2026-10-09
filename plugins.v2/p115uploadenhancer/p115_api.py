@@ -15,7 +15,15 @@ from p115client.const import _CACHE_DIR
 from p115client.exception import P115NotADirectoryError
 from p115client.tool.attr import normalize_attr, get_id_to_path, get_attr
 from p115client.tool.fs_files import fs_files_iter
-from p115client.tool.iterdir import iter_files_with_path_skim
+try:
+    from p115client.tool.iterdir import iter_files_with_path_skim
+except ImportError:
+    # p115client 0.0.9.7 renamed this helper and made paths opt-in.
+    from p115client.tool.iterdir import iter_files_skim as _iter_files_skim
+
+    def iter_files_with_path_skim(*args, **kwargs):
+        kwargs.setdefault("with_path", True)
+        return _iter_files_skim(*args, **kwargs)
 
 from app.core.config import settings, global_vars
 from app.log import logger
