@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 PLUGIN_SOURCE = Path(__file__).with_name("p115_api.py")
+REQUIREMENTS = PLUGIN_SOURCE.with_name("requirements.txt")
 
 
 class P115ClientCompatibilityTest(unittest.TestCase):
@@ -29,6 +30,11 @@ class P115ClientCompatibilityTest(unittest.TestCase):
     def test_new_helper_keeps_path_fields_enabled(self) -> None:
         self.assertIn('kwargs.setdefault("with_path", True)', self.source)
         self.assertIn("return _iter_files_skim(*args, **kwargs)", self.source)
+
+    def test_requirements_pin_current_pypi_release(self) -> None:
+        requirements = REQUIREMENTS.read_text(encoding="utf-8").splitlines()
+        self.assertIn("p115client==0.0.9.7.2", requirements)
+        self.assertNotIn("p115client==0.0.9.6.5.1", requirements)
 
 
 if __name__ == "__main__":
