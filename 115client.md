@@ -4,7 +4,7 @@
 
 - 插件：`P115UploadEnhancer`
 - 目录：`plugins.v2/p115uploadenhancer`
-- 当前版本：`1.1.10`
+- 当前版本：`1.1.11`
 - 作者：beatter789（<https://github.com/beatter789>）
 - 本文只记录传统 VForm 版；Vue 版记录在 `115clientVUE.md`。
 
@@ -37,7 +37,7 @@
 
 ## 请求保护与账户状态
 
-- `request_guard.py` 为本插件实例提供共享请求间隔和 HTTP 405 熔断；默认请求至少间隔 1 秒，405 后冷却 600 秒。
+- `request_guard.py` 为本插件实例提供共享请求间隔和 HTTP 405 熔断；默认请求至少间隔 1 秒，405 后冷却 600 秒。目录操作的 `RateLimiter` 会在获得锁后计算当前时间，避免并发排队时使用过期时间戳造成限流窗口偏差。
 - 目录分页请求使用 2 秒冷却；列表操作带实例级并发锁，空间用量使用 60 秒缓存。
 - 账户状态成功缓存 1 小时，失败缓存 5 分钟；账户接口只检查 Cookie、用户信息和空间信息，不提供扫码登录。
 - 依赖固定为 PyPI 最新版 `p115client==0.0.9.7.2`；该版本要求 `python-concurrenttools>=0.1.9`，与旧版 `p115client` 的 `threadpool_map` 冲突不再适用。目录遍历兼容旧版 `iter_files_with_path_skim` 与新版 `iter_files_skim`；新版调用显式启用 `with_path`，确保路径字段可用。
@@ -65,6 +65,8 @@
 - 后续提交前必须执行版本字段和 `history` 最新键一致性检查，确认代码版本、package version、history 最新键完全一致后才允许提交或推送。
 
 ## 变更历史（传统版）
+
+- `v1.1.11`：修复 `RateLimiter` 等待锁期间使用过期时间戳导致限流窗口计算偏差的问题。
 
 - `v1.1.10`：升级 `p115client` 至 PyPI 最新版 `0.0.9.7.2`，并验证新版目录遍历接口兼容性。
 

@@ -47,8 +47,9 @@ class RateLimiter:
         """
         获取调用许可，如果超过限制会阻塞等待直到满足条件
         """
-        now = monotonic()
         with self._lock:
+            # 只有拿到锁后再取时间，避免排队期间的旧时间戳拉长限流窗口。
+            now = monotonic()
             self._call_times = [
                 t for t in self._call_times if now - t < self.time_window
             ]
