@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moviepilot-p115uploadenhancer"
+version = "3.0.1"
+requires-python = ">=3.11"
+dependencies = ["p115client==0.0.9.7.2", "cryptography", "httpx", "oss2"]

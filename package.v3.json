@@ -1,0 +1,16 @@
+{
+  "P115UploadEnhancer": {
+    "name": "115上传增强",
+    "description": "提供115网盘Plus存储模块并增强上传、秒传等待和失败处理。",
+    "labels": "存储",
+    "version": "3.0.1",
+    "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
+    "author": "beatter789",
+    "level": 1,
+    "release": true,
+    "system_version": ">=3.0.0",
+    "history": {
+      "v3.0.1": "MoviePilot V3 独立实现，迁移 SDK 导入、存储接口和上传增强功能。"
+    }
+  }
+}
