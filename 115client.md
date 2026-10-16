@@ -4,7 +4,7 @@
 
 - 插件：`P115UploadEnhancer`
 - 目录：`plugins.v2/p115uploadenhancer`
-- 当前版本：`1.1.11`
+- 当前版本：`1.1.12`
 - 作者：beatter789（<https://github.com/beatter789>）
 - 本文只记录传统 VForm 版；Vue 版记录在 `115clientVUE.md`。
 
@@ -65,6 +65,8 @@
 - 后续提交前必须执行版本字段和 `history` 最新键一致性检查，确认代码版本、package version、history 最新键完全一致后才允许提交或推送。
 
 ## 变更历史（传统版）
+
+- `v1.1.12`：V3 独立实现发布后，V2 索引声明 `v3: false`，避免 V3 回退加载传统实现。
 
 - `v1.1.11`：修复 `RateLimiter` 等待锁期间使用过期时间戳导致限流窗口计算偏差的问题。
 
