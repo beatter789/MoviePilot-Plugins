@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "moviepilot-p115uploadenhancer"
-version = "3.0.1"
+version = "3.0.2"
 requires-python = ">=3.11"
-dependencies = ["p115client==0.0.9.7.2", "cryptography", "httpx", "oss2"]
+# Use MoviePilot's bundled oss2, which can use crcmod-plus in place of crcmod.
+dependencies = ["p115client==0.0.9.7.2", "cryptography", "httpx"]

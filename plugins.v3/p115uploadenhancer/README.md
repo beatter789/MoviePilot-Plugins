@@ -5,6 +5,7 @@
 ## 使用限制
 
 - 本插件只支持 `115网盘Plus`
+- 依赖 MoviePilot 运行环境提供 `oss2`，官方 v3.2.5 镜像已内置
 - 不支持 CloudDrive2
 - 不接管 MoviePilot 原生 `u115`
 - 不能和原 `P115Disk` 同时启用
