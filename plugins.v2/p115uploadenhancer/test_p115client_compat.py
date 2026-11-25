@@ -8,33 +8,31 @@ REQUIREMENTS = PLUGIN_SOURCE.with_name("requirements.txt")
 
 
 class P115ClientCompatibilityTest(unittest.TestCase):
-    """验证 p115client 目录遍历 API 的新旧兼容适配。"""
+    """验证固定版本 SDK 的目录遍历兼容性。"""
 
     @classmethod
     def setUpClass(cls) -> None:
         cls.source = PLUGIN_SOURCE.read_text(encoding="utf-8")
         cls.tree = ast.parse(cls.source)
 
-    def test_supports_old_and_new_iter_helpers(self) -> None:
-        imports = {
-            alias.name
-            for node in ast.walk(self.tree)
-            if isinstance(node, ast.ImportFrom)
-            and node.module == "p115client.tool.iterdir"
-            for alias in node.names
-        }
-        self.assertIn("iter_files_with_path_skim", imports)
-        self.assertIn("iter_files_skim", imports)
-        self.assertIn("except ImportError", self.source)
+    def test_directory_helper_keeps_path_fields_enabled(self) -> None:
+        calls = [
+            node for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "iter_files_skim"
+        ]
+        self.assertTrue(calls)
+        for call in calls:
+            options = {kw.arg: kw.value for kw in call.keywords}
+            self.assertIs(ast.literal_eval(options["with_path"]), True)
 
-    def test_new_helper_keeps_path_fields_enabled(self) -> None:
-        self.assertIn('kwargs.setdefault("with_path", True)', self.source)
-        self.assertIn("return _iter_files_skim(*args, **kwargs)", self.source)
-
-    def test_requirements_pin_current_pypi_release(self) -> None:
+    def test_requirements_pin_target_release(self) -> None:
         requirements = REQUIREMENTS.read_text(encoding="utf-8").splitlines()
-        self.assertIn("p115client==0.0.9.7.2", requirements)
-        self.assertNotIn("p115client==0.0.9.6.5.1", requirements)
+        self.assertEqual(
+            [line for line in requirements if line.startswith("p115client")],
+            ["p115client==0.0.9.7.8.3"],
+        )
 
 
 if __name__ == "__main__":

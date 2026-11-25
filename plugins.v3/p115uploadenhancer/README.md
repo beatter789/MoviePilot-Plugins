@@ -5,6 +5,7 @@
 ## 使用限制
 
 - 本插件只支持 `115网盘Plus`
+- 插件索引声明 MoviePilot `>=3.0.0`；`p115client==0.0.9.7.8.3` 要求 Python `>=3.12`
 - 依赖 MoviePilot 运行环境提供 `oss2`，官方 v3.2.5 镜像已内置
 - 不支持 CloudDrive2
 - 不接管 MoviePilot 原生 `u115`

@@ -27,7 +27,7 @@ def test_v3_imports_and_version_are_independent():
     assert "app.core" not in SOURCE + API_SOURCE
     assert "app.log" not in SOURCE + API_SOURCE
     assert "app.helper" not in SOURCE + API_SOURCE
-    assert 'plugin_version = "3.0.1"' in SOURCE
+    assert 'plugin_version = "3.0.3"' in SOURCE
 
 
 def test_storage_contract_methods_and_module_exports():
@@ -53,10 +53,13 @@ def test_new_p115client_directory_api_is_used():
 def test_v3_index_and_pyproject_contract():
     index = json.loads((ROOT / "package.v3.json").read_text(encoding="utf-8"))
     entry = index["P115UploadEnhancer"]
-    assert entry["version"] == "3.0.1"
-    assert "v3.0.1" in entry["history"]
+    assert entry["version"] == "3.0.3"
+    assert next(iter(entry["history"])) == f'v{entry["version"]}'
     assert entry["system_version"] == ">=3.0.0"
-    assert "p115client==0.0.9.7.2" in (PLUGIN / "pyproject.toml").read_text(encoding="utf-8")
+    metadata = (PLUGIN / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'version = "{entry["version"]}"' in metadata
+    assert 'requires-python = ">=3.12"' in metadata
+    assert "p115client==0.0.9.7.8.3" in metadata
 
 
 def test_no_secret_literals_or_source_tests_in_plugin_directory():

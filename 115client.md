@@ -4,7 +4,7 @@
 
 - 插件：`P115UploadEnhancer`
 - 目录：`plugins.v2/p115uploadenhancer`
-- 当前版本：`1.1.12`
+- 当前版本：`1.1.13`
 - 作者：beatter789（<https://github.com/beatter789>）
 - 本文只记录传统 VForm 版；Vue 版记录在 `115clientVUE.md`。
 
@@ -40,7 +40,7 @@
 - `request_guard.py` 为本插件实例提供共享请求间隔和 HTTP 405 熔断；默认请求至少间隔 1 秒，405 后冷却 600 秒。目录操作的 `RateLimiter` 会在获得锁后计算当前时间，避免并发排队时使用过期时间戳造成限流窗口偏差。
 - 目录分页请求使用 2 秒冷却；列表操作带实例级并发锁，空间用量使用 60 秒缓存。
 - 账户状态成功缓存 1 小时，失败缓存 5 分钟；账户接口只检查 Cookie、用户信息和空间信息，不提供扫码登录。
-- 依赖固定为 PyPI 最新版 `p115client==0.0.9.7.2`；该版本要求 `python-concurrenttools>=0.1.9`，与旧版 `p115client` 的 `threadpool_map` 冲突不再适用。目录遍历兼容旧版 `iter_files_with_path_skim` 与新版 `iter_files_skim`；新版调用显式启用 `with_path`，确保路径字段可用。
+- 依赖固定为 `p115client==0.0.9.7.8.3`，要求 Python `>=3.12`。目录遍历使用 `iter_files_skim` 并显式启用 `with_path`；直链下载保留 SDK 返回的请求头。
 - `clear_cache` 只清理本地路径 ID 和文件详情缓存，不删除网盘文件，也不清除 Cookie。
 - 配置页“检查 Cookie”按钮通过宿主 `window.MoviePilotAPI` 调用刷新接口，并在当前页面显示检查中、Cookie 有效或失败状态。
 - 配置页首行将“启用插件”“检查 Cookie”、Cookie 状态反馈和“清理缓存”排列为四个响应式列，桌面端各占三列，移动端自动换行；Cookie 检查按钮使用 `info` 蓝色，清理缓存保持 `warning` 样式。
@@ -65,6 +65,8 @@
 - 后续提交前必须执行版本字段和 `history` 最新键一致性检查，确认代码版本、package version、history 最新键完全一致后才允许提交或推送。
 
 ## 变更历史（传统版）
+
+- `v1.1.13`：升级 `p115client` 至 `0.0.9.7.8.3`，适配目录接口和下载请求。
 
 - `v1.1.12`：V3 独立实现发布后，V2 索引声明 `v3: false`，避免 V3 回退加载传统实现。
 

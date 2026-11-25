@@ -82,7 +82,7 @@ class P115UploadEnhancer(_PluginBase):
         "refs/heads/v2/src/assets/images/misc/u115.png"
     )
     # 插件版本
-    plugin_version = "1.1.12"
+    plugin_version = "1.1.13"
     # 插件作者
     plugin_author = "beatter789"
     # 作者主页

@@ -19,6 +19,11 @@ class GuardedP115Client:
         self._client = client
         self._guard = guard
 
+    @property
+    def __class__(self) -> type:
+        # SDK helpers use isinstance to select the Cookie or Open API.
+        return type(self._client)
+
     def __getattr__(self, name: str) -> Any:
         """
         获取原始客户端属性并包装可调用请求

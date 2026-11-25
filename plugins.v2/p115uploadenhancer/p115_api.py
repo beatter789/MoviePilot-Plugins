@@ -11,19 +11,9 @@ from oss2.models import PartInfo
 from oss2.utils import b64encode_as_string
 from oss2.exceptions import ServerError
 from p115client import P115Client, check_response
-from p115client.const import _CACHE_DIR
-from p115client.exception import P115NotADirectoryError
 from p115client.tool.attr import normalize_attr, get_id_to_path, get_attr
 from p115client.tool.fs_files import fs_files_iter
-try:
-    from p115client.tool.iterdir import iter_files_with_path_skim
-except ImportError:
-    # p115client 0.0.9.7 renamed this helper and made paths opt-in.
-    from p115client.tool.iterdir import iter_files_skim as _iter_files_skim
-
-    def iter_files_with_path_skim(*args, **kwargs):
-        kwargs.setdefault("with_path", True)
-        return _iter_files_skim(*args, **kwargs)
+from p115client.tool.iterdir import iter_files_skim
 
 from app.core.config import settings, global_vars
 from app.log import logger
@@ -155,9 +145,10 @@ class P115Api:
 
         items = []
         try:
-            for item in iter_files_with_path_skim(
+            for item in iter_files_skim(
                 client=self.client,
                 cid=file_id,
+                with_path=True,
                 with_ancestors=False,
                 **get_ios_ua_app(),
             ):
@@ -270,13 +261,7 @@ class P115Api:
                     )
         except Exception as e:
             logger.warn(f"【115上传增强】获取信息失败: {str(e)}")
-            if isinstance(e, P115NotADirectoryError) and file_id and file_id != "0":
-                try:
-                    self._id_cache.remove(id=int(file_id))
-                    self._id_item_cache.remove(id=int(file_id))
-                except Exception:
-                    pass
-            if isinstance(e, P115NotADirectoryError) and file_id and file_id != "0":
+            if isinstance(e, NotADirectoryError) and file_id and file_id != "0":
                 try:
                     self._id_cache.remove(id=int(file_id))
                     self._id_item_cache.remove(id=int(file_id))
@@ -716,9 +701,10 @@ class P115Api:
             logger.error(f"【115上传增强】获取文件详情失败: {fileitem.name}")
             return None
 
-        download_url = self.client.download_url(
+        download_info = self.client.download_url(
             detail.pickcode, user_agent=settings.USER_AGENT
-        ).geturl()
+        )
+        download_url = download_info.geturl() if download_info else None
         if not download_url:
             logger.error(f"【115上传增强】下载链接为空: {fileitem.name}")
             return None
@@ -733,9 +719,12 @@ class P115Api:
         progress_callback = transfer_process(Path(fileitem.path).as_posix())
 
         try:
-            with stream(
-                "GET", download_url, headers={"user-agent": settings.USER_AGENT}
-            ) as r:
+            headers = {"user-agent": settings.USER_AGENT}
+            headers.update(
+                (key.lower(), value)
+                for key, value in (download_info.get("headers") or {}).items()
+            )
+            with stream("GET", download_url, headers=headers) as r:
                 r.raise_for_status()
                 downloaded_size = 0
 
@@ -890,9 +879,7 @@ class P115Api:
             init_resp = None
             init_max_retries = 3
             init_retry_delay = 2
-            sig_invalid_handled = False
             for init_attempt in range(init_max_retries):
-                init_resp = None
                 try:
                     init_resp = self.client.upload_file_init(
                         filename=target_name,
@@ -904,17 +891,6 @@ class P115Api:
                     check_response(init_resp)
                     break
                 except Exception as e:
-                    if (
-                        not sig_invalid_handled
-                        and init_resp
-                        and isinstance(init_resp, dict)
-                        and init_resp.get("statusmsg") == "sig invalid"
-                    ):
-                        userkey_points_json = _CACHE_DIR / "userkey_stable_points.json"
-                        if userkey_points_json.exists():
-                            userkey_points_json.unlink(missing_ok=True)
-                        sig_invalid_handled = True
-                        continue
                     if init_attempt < init_max_retries - 1:
                         logger.warn(
                             f"【115上传增强】初始化上传失败，"
